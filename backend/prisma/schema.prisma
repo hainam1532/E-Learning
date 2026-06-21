@@ -1,0 +1,173 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  usercode  String   @unique
+  email     String?  @unique
+  password  String
+  fullName  String?
+  role      Role     @default(USER)
+  
+  // Thông tin phòng ban và chức vụ
+  departmentId Int?
+  positionId   Int?
+  department  Department? @relation(fields: [departmentId], references: [id])
+  position     Position?   @relation(fields: [positionId], references: [id])
+
+  refreshTokens RefreshToken[]
+  progresses    LearningProgress[]
+  enrollments   Enrollment[]
+
+  createdAt DateTime @default(now())
+
+  @@map("users")
+}
+
+// Phòng ban
+model Department {
+  id          Int      @id @default(autoincrement())
+  name_vi     String?
+  name_en     String?
+  name_zh     String?
+  code        String   @unique
+  description String?
+  
+  users       User[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("departments")
+}
+
+// Chức vụ
+model Position {
+  id          Int      @id @default(autoincrement())
+  name_vi     String?
+  name_en     String?
+  name_zh     String?
+  code        String   @unique
+  description String?
+  
+  users       User[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("positions")
+}
+
+// Cấu hình hệ thống
+model SystemConfig {
+  id          Int      @id @default(autoincrement())
+  configKey   String   @unique
+  configValue String
+  description String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_configs")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model Course {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+
+  lessons     Lesson[]
+  enrollments Enrollment[]
+
+  createdAt DateTime @default(now())
+
+  @@map("courses")
+}
+
+model Lesson {
+  id        Int     @id @default(autoincrement())
+  title     String
+  order     Int
+
+  courseId  Int
+  course    Course  @relation(fields: [courseId], references: [id])
+
+  video     Video?
+  progresses LearningProgress[]
+
+  @@map("lessons")
+}
+
+model Video {
+  id        Int    @id @default(autoincrement())
+
+  lessonId  Int    @unique
+  lesson    Lesson @relation(fields: [lessonId], references: [id])
+
+  bucket    String
+  path      String   // index.m3u8
+
+  duration  Int?
+
+  @@map("videos")
+}
+
+model Enrollment {
+  id        Int   @id @default(autoincrement())
+
+  userId    Int
+  courseId  Int
+
+  user      User   @relation(fields: [userId], references: [id])
+  course    Course @relation(fields: [courseId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+  @@map("enrollments")
+}
+
+model LearningProgress {
+  id        Int @id @default(autoincrement())
+
+  userId    Int
+  lessonId  Int
+
+  user      User   @relation(fields: [userId], references: [id])
+  lesson    Lesson @relation(fields: [lessonId], references: [id])
+
+  watchedSeconds Int @default(0)
+  completed      Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("learning_progress")
+}

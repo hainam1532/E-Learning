@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+body {
+    font-family: "Public Sans";
+}
+
+/* Admin Sidebar Menu Custom Styles */
+.admin-sidebar-menu .ant-menu-item,
+.admin-sidebar-menu .ant-menu-submenu-title {
+    color: #e2e8f0 !important;
+}
+
+.admin-sidebar-menu .ant-menu-item:hover,
+.admin-sidebar-menu .ant-menu-submenu-title:hover {
+    color: #f1f5f9 !important;
+}
+
+.admin-sidebar-menu .ant-menu-item-selected {
+    background-color: #f59e0b !important;
+    color: #ffffff !important;
+}
+
+.admin-sidebar-menu .ant-menu-submenu-selected > .ant-menu-submenu-title {
+    color: #f59e0b !important;
+}
+
+/* Submenu item text - allow full display for long names */
+.admin-sidebar-menu .ant-menu-item .ant-menu-title-content,
+.admin-sidebar-menu .ant-menu-submenu-title .ant-menu-title-content {
+    white-space: normal;
+    word-break: break-word;
+}
+
+/* Remove default antd inline submenu styles */
+.admin-sidebar-menu .ant-menu-inline .ant-menu-submenu-title,
+.admin-sidebar-menu .ant-menu-inline .ant-menu-item {
+    margin: 0;
+}
+
+/* Ensure icons stay visible */
+.admin-sidebar-menu .anticon {
+    flex-shrink: 0;
+}
+
+/* Submenu popup background */
+.admin-sidebar-menu .ant-menu-sub {
+    background-color: #0f172a !important;
+}
