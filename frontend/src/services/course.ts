@@ -42,6 +42,7 @@ export interface Course {
   category?: CourseCategory;
   instructor?: User;
   courseVideos?: CourseVideo[];
+  lessons?: Lesson[];
   rule?: CourseRule;
   createdAt: string;
   updatedAt: string;
@@ -74,11 +75,11 @@ export interface User {
 
 export interface Video {
   id: number;
-  name?: string;
-  thumbnailUrl?: string;
-  duration?: number;
+  name?: string | null;
+  thumbnailUrl?: string | null;
+  duration?: number | null;
   status: string;
-  hlsPath?: string;
+  hlsPath?: string | null;
 }
 
 export interface CourseVideo {
@@ -243,7 +244,46 @@ export async function getInstructors(): Promise<User[]> {
 }
 
 // Get Videos for course selection
-export async function getVideos(): Promise<Video[]> {
+export async function getVideos(): Promise<any[]> {
   const { getVideos: fetchVideos } = await import("./video/video.get");
   return fetchVideos();
+}
+
+// Get course with user progress (for academy courses)
+export async function getCourseWithProgress(courseId: number): Promise<Course> {
+  const authStore = await import("../store/authStore");
+  const userId = authStore.useAuthStore.getState().user?.id;
+  
+  if (!userId) {
+    return getCourse(courseId);
+  }
+  
+  try {
+    const response = await api.get<CourseResponse>(`/courses/${courseId}`, {
+      params: { userId }
+    });
+    return response.data.data;
+  } catch (error) {
+    // Fallback to regular course fetch
+    return getCourse(courseId);
+  }
+}
+
+// Get courses for profile that are from academies (with progress)
+export async function getAcademyCoursesForProfile(): Promise<Course[]> {
+  const { authGet } = await import("./auth/auth.get");
+  try {
+    const response = await authGet.getAcademies();
+    const academies = response.data.academies;
+    
+    // Get courses from all academies the user is enrolled in
+    const allCourses: Course[] = [];
+    for (const academy of academies) {
+      const courses = await getCoursesByAcademy(academy.id);
+      allCourses.push(...courses);
+    }
+    return allCourses;
+  } catch (error) {
+    return [];
+  }
 }

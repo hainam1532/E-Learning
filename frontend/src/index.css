@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+/* Custom pulse animation for video playing indicator */
+@keyframes video-pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(0.95);
+    }
+}
+
+.video-playing-indicator {
+    animation: video-pulse 1s ease-in-out infinite;
+    display: inline-block;
+}
+
 body {
     font-family: "Public Sans";
 }

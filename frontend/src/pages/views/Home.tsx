@@ -155,11 +155,12 @@ export default function Home() {
                 : lang === 'zh' ? (course.title_zh || course.title_vi) 
                 : course.title_vi;
               
-              return (
+return (
                 <Card
                   key={course.id}
                   hoverable
-                  className="overflow-hidden rounded-2xl border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300"
+                  className="overflow-hidden rounded-2xl border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer"
+                  onClick={() => navigate(`/learn/${course.id}`)}
                   cover={
                     <img
                       alt={title}
@@ -187,7 +188,17 @@ export default function Home() {
                       <span className="text-slate-500 text-sm">
                         {course.courseVideos?.length || 0} {t('home.videos') || 'videos'}
                       </span>
-                      <Button type="primary" size="small" className="bg-blue-600 border-none font-semibold">{t('home.learnNow')}</Button>
+                      <Button 
+                        type="primary" 
+                        size="small" 
+                        className="bg-blue-600 border-none font-semibold"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/learn/${course.id}`);
+                        }}
+                      >
+                        {t('home.learnNow')}
+                      </Button>
                     </div>
                   </div>
                 </Card>

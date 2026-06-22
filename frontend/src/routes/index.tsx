@@ -6,6 +6,7 @@ import Home from "../pages/views/Home";
 import Profile from "../pages/views/Profile";
 import Login from "../pages/views/Login";
 import Unauthorized from "../pages/views/Unauthorized";
+import CourseLearn from "../pages/views/CourseLearn";
 import Dashboard from "../pages/admin/Dashboard";
 import UserManagement from "../pages/admin/UserManagement";
 import RoleManagement from "../pages/admin/RoleManagement";
@@ -42,9 +43,18 @@ export const router = createBrowserRouter([
         path: "login",
         element: <Login />,
       },
-      {
+{
         path: "unauthorized",
         element: <Unauthorized />,
+      },
+      // Course Learning Page
+      {
+        path: "learn/:courseId",
+        element: <CourseLearn />,
+      },
+      {
+        path: "learn/:courseId/:videoId",
+        element: <CourseLearn />,
       },
     ],
   },

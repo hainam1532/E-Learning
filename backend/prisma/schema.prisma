@@ -283,6 +283,7 @@ model LearningProgress {
 
   updatedAt DateTime @updatedAt
 
+  @@unique([userId, lessonId])
   @@map("learning_progress")
 }
 

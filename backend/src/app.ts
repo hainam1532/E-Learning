@@ -6,6 +6,7 @@ import i18nMiddleware from "./middlewares/i18n";
 import authRoutes from "./modules/auth/auth.routes";
 import videoRoutes from "./modules/video/video.routes";
 import courseRoutes from "./modules/course/course.routes";
+import progressRoutes from "./modules/progress/progress.routes";
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -40,6 +41,7 @@ app.use(i18nMiddleware);
 app.use("/api/auth", authRoutes);
 app.use("/api/videos", videoRoutes);
 app.use("/api/courses", courseRoutes);
+app.use("/api/progress", progressRoutes);
 
 // Test endpoint
 app.get("/api/ping", (req, res) => {
