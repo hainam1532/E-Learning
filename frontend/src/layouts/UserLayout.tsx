@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Dropdown, Avatar, Button, Select, type MenuProps } from 'antd';
-import { UserOutlined, LogoutOutlined, AppstoreOutlined, HomeOutlined } from '@ant-design/icons';
+import { Dropdown, Avatar, Button, Select, type MenuProps, Drawer, Menu } from 'antd';
+import { UserOutlined, LogoutOutlined, AppstoreOutlined, HomeOutlined, MenuOutlined } from '@ant-design/icons';
 import LanguageSelector from '../components/LanguageSelector';
 import { getAcademies } from '../services/course';
 import type { Academy } from '../services/course';
@@ -10,8 +10,10 @@ import type { Academy } from '../services/course';
 export default function UserLayout() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [academies, setAcademies] = useState<Academy[]>([]);
   const [selectedAcademy, setSelectedAcademy] = useState<number | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Filter academies based on user permission
   const filterAcademiesForUser = (allAcademies: Academy[], currentUserId?: string): Academy[] => {
@@ -55,7 +57,6 @@ export default function UserLayout() {
 
   const handleAcademyChange = (value: number | null) => {
     setSelectedAcademy(value);
-    // Navigate to home with academy filter or reload
     if (value) {
       navigate(`/?academy=${value}`);
     } else {
@@ -100,9 +101,13 @@ export default function UserLayout() {
             </span>
           </Link>
 
-<nav className="hidden md:flex items-center gap-6">
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-6">
             <Link to="/" className="text-slate-600 hover:text-blue-600 font-medium transition-colors flex items-center gap-1.5">
               <HomeOutlined /> Trang chủ
+            </Link>
+            <Link to="/profile" className="text-slate-600 hover:text-blue-600 font-medium transition-colors flex items-center gap-1.5">
+              <UserOutlined /> Cá nhân
             </Link>
             {academies.length > 0 && (
               <Select
@@ -124,6 +129,61 @@ export default function UserLayout() {
               />
             )}
           </nav>
+
+{/* Mobile Menu Button - chỉ hiện trên mobile */}
+          <div className="md:hidden">
+            <Button 
+              type="text" 
+              icon={<MenuOutlined />} 
+              onClick={() => setMobileMenuOpen(true)}
+            />
+          </div>
+
+          {/* Mobile Navigation Drawer - chỉ hiện trên mobile */}
+          <div className="md:hidden">
+            <Drawer
+              title={
+                <Link to="/" onClick={() => setMobileMenuOpen(false)}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold shadow-lg">
+                      E+
+                    </div>
+                    <span className="text-lg font-bold">Learning</span>
+                  </div>
+                </Link>
+              }
+              placement="left"
+              onClose={() => setMobileMenuOpen(false)}
+              open={mobileMenuOpen}
+              styles={{ body: { padding: 0 } }}
+            >
+              <Menu
+                mode="inline"
+                selectedKeys={[location.pathname]}
+                items={[
+                  {
+                    key: '/',
+                    icon: <HomeOutlined />,
+                    label: <Link to="/" onClick={() => setMobileMenuOpen(false)}>Trang chủ</Link>,
+                  },
+                  {
+                    key: '/profile',
+                    icon: <UserOutlined />,
+                    label: <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>Cá nhân</Link>,
+                  },
+                  ...(academies.length > 0 ? [{
+                    key: 'academies',
+                    icon: <AppstoreOutlined />,
+                    label: 'Học viện',
+                    children: academies.map(a => ({
+                      key: `/?academy=${a.id}`,
+                      label: <Link to={`/?academy=${a.id}`} onClick={() => setMobileMenuOpen(false)}>{getAcademyName(a)}</Link>,
+                    })),
+                  }] : []),
+                ]}
+              />
+            </Drawer>
+          </div>
         </div>
 
         <div className="flex items-center gap-4">

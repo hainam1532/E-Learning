@@ -3,6 +3,7 @@ import UserLayout from "../layouts/UserLayout";
 import AdminLayout from "../layouts/AdminLayout";
 import ProtectedRoute from "../components/ProtectedRoute";
 import Home from "../pages/views/Home";
+import Profile from "../pages/views/Profile";
 import Login from "../pages/views/Login";
 import Unauthorized from "../pages/views/Unauthorized";
 import Dashboard from "../pages/admin/Dashboard";
@@ -29,9 +30,13 @@ export const router = createBrowserRouter([
     path: "/",
     element: <UserLayout />,
     children: [
-      {
+{
         path: "",
         element: <Home />,
+      },
+      {
+        path: "profile",
+        element: <Profile />,
       },
       {
         path: "login",
