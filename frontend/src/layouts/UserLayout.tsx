@@ -1,16 +1,66 @@
+import { useState, useEffect } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Dropdown, Avatar, Button, type MenuProps } from 'antd';
+import { Dropdown, Avatar, Button, Select, type MenuProps } from 'antd';
 import { UserOutlined, LogoutOutlined, AppstoreOutlined, HomeOutlined } from '@ant-design/icons';
 import LanguageSelector from '../components/LanguageSelector';
+import { getAcademies } from '../services/course';
+import type { Academy } from '../services/course';
 
 export default function UserLayout() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
+  const [academies, setAcademies] = useState<Academy[]>([]);
+  const [selectedAcademy, setSelectedAcademy] = useState<number | null>(null);
 
+  // Filter academies based on user permission
+  const filterAcademiesForUser = (allAcademies: Academy[], currentUserId?: string): Academy[] => {
+    if (!currentUserId) {
+      return allAcademies.filter(a => a.isPublic);
+    }
+    return allAcademies.filter(a => {
+      if (a.isPublic) return true;
+      const assignedUserIds = a.users?.map(u => u.id) || [];
+      return assignedUserIds.includes(Number(currentUserId));
+    });
+  };
+
+  // Get academy name based on language
+  const getAcademyName = (academy: Academy): string => {
+    const lang = localStorage.getItem('i18nextLng') || 'vi';
+    if (lang === 'en') return academy.name_en || academy.name_vi || '';
+    if (lang === 'zh') return academy.name_zh || academy.name_vi || '';
+    return academy.name_vi || '';
+  };
+
+  // Fetch academies on mount
+  useEffect(() => {
+    const fetchAcademies = async () => {
+      try {
+        const data = await getAcademies();
+        const filteredAcademies = filterAcademiesForUser(data, user?.id);
+        setAcademies(filteredAcademies);
+      } catch (error) {
+        console.error('Failed to fetch academies:', error);
+      }
+    };
+    fetchAcademies();
+  }, [user?.id]);
+
+  // Handle logout
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleAcademyChange = (value: number | null) => {
+    setSelectedAcademy(value);
+    // Navigate to home with academy filter or reload
+    if (value) {
+      navigate(`/?academy=${value}`);
+    } else {
+      navigate('/');
+    }
   };
 
   const userMenuItems: MenuProps['items'] = [
@@ -50,10 +100,29 @@ export default function UserLayout() {
             </span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-6">
+<nav className="hidden md:flex items-center gap-6">
             <Link to="/" className="text-slate-600 hover:text-blue-600 font-medium transition-colors flex items-center gap-1.5">
               <HomeOutlined /> Trang chủ
             </Link>
+            {academies.length > 0 && (
+              <Select
+                value={selectedAcademy}
+                onChange={handleAcademyChange}
+                placeholder="Chọn học viện"
+                allowClear
+                showSearch
+                optionFilterProp="children"
+                className="min-w-[180px]"
+                popupMatchSelectWidth={false}
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                }
+                options={academies.map(a => ({
+                  value: a.id,
+                  label: getAcademyName(a),
+                }))}
+              />
+            )}
           </nav>
         </div>
 

@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
 import { prisma } from "../../config/db";
+import multer from "multer";
+import * as path from "path";
+import { randomUUID } from "crypto";
 
 // Helper to parse ID safely
 function parseId(value: string | string[] | undefined): number | null {
@@ -14,7 +17,16 @@ function parseId(value: string | string[] | undefined): number | null {
  */
 export const getCourses = async (req: Request, res: Response): Promise<void> => {
   try {
+    const academyId = req.query.academyId ? parseInt(req.query.academyId as string) : null;
+
+    // Build where clause
+    const where: any = {};
+    if (academyId && !isNaN(academyId)) {
+      where.academyId = academyId;
+    }
+
     const courses = await prisma.course.findMany({
+      where,
       include: {
         academy: true,
         category: true,
@@ -374,7 +386,38 @@ export const deleteCourse = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    // Delete course (rule will be cascade deleted)
+    // First, delete all related records that have foreign keys to this course
+    // 1. Delete course videos (must be done first due to FK constraint)
+    await prisma.courseVideo.deleteMany({
+      where: { courseId },
+    });
+
+    // 2. Delete enrollments
+    await prisma.enrollment.deleteMany({
+      where: { courseId },
+    });
+
+    // 3. Delete lessons (which will also delete related learning progress)
+    const lessons = await prisma.lesson.findMany({
+      where: { courseId },
+      select: { id: true },
+    });
+    if (lessons.length > 0) {
+      const lessonIds = lessons.map((l) => l.id);
+      await prisma.learningProgress.deleteMany({
+        where: { lessonId: { in: lessonIds } },
+      });
+      await prisma.lesson.deleteMany({
+        where: { courseId },
+      });
+    }
+
+    // 4. Delete course rule
+    await prisma.courseRule.deleteMany({
+      where: { courseId },
+    });
+
+    // 5. Finally delete the course
     await prisma.course.delete({
       where: { id: courseId },
     });
@@ -674,6 +717,122 @@ export const getLessonsByCourse = async (req: Request, res: Response): Promise<v
     res.status(500).json({
       success: false,
       message: error instanceof Error ? error.message : "Failed to get lessons",
+    });
+  }
+};
+
+// ===== Course Cover Image Upload =====
+
+const storageCover = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(process.cwd(), "uploads"));
+  },
+  filename: (req, file, cb) => {
+    const uuid = randomUUID();
+    const ext = path.extname(file.originalname);
+    cb(null, `cover_${uuid}${ext}`);
+  },
+});
+
+export const coverMiddleware = multer({
+  storage: storageCover,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only image files are allowed."));
+    }
+  },
+});
+
+export const uploadCover = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const courseId = parseId(req.params.id);
+    const file = req.file;
+
+    if (courseId === null) {
+      res.status(400).json({ success: false, message: "Invalid course ID" });
+      return;
+    }
+    if (!file) {
+      res.status(400).json({ success: false, message: "No cover file provided" });
+      return;
+    }
+
+    const existingCourse = await prisma.course.findUnique({
+      where: { id: courseId },
+    });
+
+    if (!existingCourse) {
+      res.status(404).json({ success: false, message: "Course not found" });
+      return;
+    }
+
+    const minio = await import("minio");
+    let minioClient: any;
+    try {
+      minioClient = new minio.Client({
+        endPoint: process.env.MINIO_ENDPOINT || "localhost",
+        port: parseInt(process.env.MINIO_PORT || "9000"),
+        useSSL: false,
+        accessKey: process.env.MINIO_ACCESS_KEY || "minioadmin",
+        secretKey: process.env.MINIO_SECRET_KEY || "minioadmin",
+      });
+    } catch (e) {
+      const { minioClient: client } = await import("../../config/minio");
+      minioClient = client;
+    }
+
+    const THUMBNAIL_BUCKET = "elearning-pictures";
+    const bucketExists = await minioClient.bucketExists(THUMBNAIL_BUCKET);
+    if (!bucketExists) {
+      await minioClient.makeBucket(THUMBNAIL_BUCKET, "us-east-1");
+      
+      const policy = {
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Effect: "Allow",
+            Principal: "*",
+            Action: ["s3:GetObject"],
+            Resource: [`arn:aws:s3:::${THUMBNAIL_BUCKET}/*`],
+          },
+        ],
+      };
+      await minioClient.setBucketPolicy(THUMBNAIL_BUCKET, JSON.stringify(policy));
+    }
+
+    const objectName = `covers/${courseId}_${Date.now()}${path.extname(file.originalname)}`;
+    await minioClient.fPutObject(THUMBNAIL_BUCKET, objectName, file.path, {
+      "Content-Type": file.mimetype,
+    });
+
+    const endpoint = process.env.MINIO_ENDPOINT || "localhost";
+    const port = process.env.MINIO_PORT || "9000";
+    const coverImage = `http://${endpoint}:${port}/${THUMBNAIL_BUCKET}/${objectName}`;
+
+    await prisma.course.update({
+      where: { id: courseId },
+      data: { coverImage },
+    });
+
+    const fs = await import("fs");
+    fs.unlinkSync(file.path);
+
+    res.json({
+      success: true,
+      message: "Cover uploaded successfully",
+      data: { coverImage },
+    });
+  } catch (error) {
+    console.error("Upload cover error:", error);
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : "Upload failed",
     });
   }
 };

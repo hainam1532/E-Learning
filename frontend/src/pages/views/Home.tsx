@@ -1,40 +1,56 @@
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, Button, Badge } from 'antd';
 import { BookOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { getCoursesByAcademy, getCourses } from '../../services/course';
+import type { Course, Academy } from '../../services/course';
 
 export default function Home() {
   const { t } = useTranslation();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const courses = [
-    {
-      id: 1,
-      title: 'Lập trình ReactJS & TypeScript từ cơ bản đến nâng cao',
-      level: 'Trung bình',
-      duration: '45 giờ học',
-      students: 1250,
-      image: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&w=600&q=80',
-    },
-    {
-      id: 2,
-      title: 'Xây dựng RESTful API với Node.js, Express & MongoDB',
-      level: 'Cơ bản',
-      duration: '32 giờ học',
-      students: 980,
-      image: 'https://images.unsplash.com/photo-1510915228340-29c85a43dcfe?auto=format&fit=crop&w=600&q=80',
-    },
-    {
-      id: 3,
-      title: 'Làm chủ thiết kế CSS với Tailwind CSS v4 & Responsive Layouts',
-      level: 'Mọi cấp độ',
-      duration: '18 giờ học',
-      students: 3100,
-      image: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=600&q=80',
-    },
-  ];
+  // Get academyId from URL query params - this comes from the dropdown in UserLayout
+  const selectedAcademy = useMemo(() => {
+    const academyId = searchParams.get('academy');
+    return academyId ? parseInt(academyId) : null;
+  }, [searchParams]);
+
+  // Fetch courses when academy selection changes
+  useEffect(() => {
+    const fetchCourses = async () => {
+      setLoading(true);
+      try {
+        if (selectedAcademy) {
+          const data = await getCoursesByAcademy(selectedAcademy);
+          setCourses(data);
+        } else {
+          const data = await getCourses();
+          setCourses(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch courses:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCourses();
+  }, [selectedAcademy]);
+
+  // Get academy name based on language
+  const getAcademyName = (academy: Academy | undefined): string => {
+    if (!academy) return '';
+    const lang = localStorage.getItem('i18nextLng') || 'vi';
+    if (lang === 'en') return academy.name_en || academy.name_vi || '';
+    if (lang === 'zh') return academy.name_zh || academy.name_vi || '';
+    return academy.name_vi || '';
+  };
 
   return (
     <div className="space-y-12">
@@ -121,40 +137,64 @@ export default function Home() {
             <h2 className="text-2xl font-bold text-slate-800">{t('home.featuredCourses')}</h2>
             <p className="text-slate-500 text-sm">{t('home.featuredCoursesSub')}</p>
           </div>
-          <Button type="link" className="font-bold text-blue-600 hover:text-blue-700">{t('home.viewAll')}</Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {courses.map((course) => (
-            <Card
-              key={course.id}
-              hoverable
-              className="overflow-hidden rounded-2xl border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300"
-              cover={
-                <img
-                  alt={course.title}
-                  src={course.image}
-                  className="h-48 w-full object-cover hover:scale-105 transition-transform duration-300"
-                />
-              }
-            >
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Badge status="processing" text={course.level} className="text-xs" />
-                  <span className="text-xs text-slate-400">•</span>
-                  <span className="text-xs text-slate-500">{course.duration}</span>
-                </div>
-                <h3 className="font-bold text-slate-800 line-clamp-2 min-h-[3rem] text-base hover:text-blue-600 transition-colors">
-                  {course.title}
-                </h3>
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-slate-500 text-sm">{course.students} {t('home.students')}</span>
-                  <Button type="primary" size="small" className="bg-blue-600 border-none font-semibold">{t('home.learnNow')}</Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center py-12 text-slate-500">Loading...</div>
+        ) : courses.length === 0 ? (
+          <div className="text-center py-12 text-slate-500">
+            {selectedAcademy 
+              ? (t('home.noCourses') || 'Không có khóa học nào thuộc học viện này')
+              : (t('home.noCourses') || 'Chưa có khóa học nào')}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {courses.map((course) => {
+              const lang = localStorage.getItem('i18nextLng') || 'vi';
+              const title = lang === 'en' ? (course.title_en || course.title_vi) 
+                : lang === 'zh' ? (course.title_zh || course.title_vi) 
+                : course.title_vi;
+              
+              return (
+                <Card
+                  key={course.id}
+                  hoverable
+                  className="overflow-hidden rounded-2xl border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300"
+                  cover={
+                    <img
+                      alt={title}
+                      src={course.coverImage || 'https://images.unsplash.com/photo-1510915228340-29c85a43dcfe?auto=format&fit=crop&w=600&q=80'}
+                      className="h-48 w-full object-cover hover:scale-105 transition-transform duration-300"
+                    />
+                  }
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      {course.academy && (
+                        <Badge status="processing" text={getAcademyName(course.academy)} className="text-xs" />
+                      )}
+                      {course.language && (
+                        <>
+                          <span className="text-xs text-slate-400">•</span>
+                          <span className="text-xs text-slate-500">{course.language}</span>
+                        </>
+                      )}
+                    </div>
+                    <h3 className="font-bold text-slate-800 line-clamp-2 min-h-[3rem] text-base hover:text-blue-600 transition-colors">
+                      {title || 'Untitled Course'}
+                    </h3>
+                    <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-slate-500 text-sm">
+                        {course.courseVideos?.length || 0} {t('home.videos') || 'videos'}
+                      </span>
+                      <Button type="primary" size="small" className="bg-blue-600 border-none font-semibold">{t('home.learnNow')}</Button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </section>
     </div>
   );

@@ -13,6 +13,7 @@ import PositionManagement from "../pages/admin/PositionManagement";
 import SystemConfig from "../pages/admin/SystemConfig";
 import VideoLibrary from "../pages/admin/VideoLibrary";
 import AcademyManagement from "../pages/admin/AcademyManagement";
+import CourseManagement from "../pages/admin/CourseManagement";
 
 // Placeholder components for new menu items
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -84,7 +85,7 @@ export const router = createBrowserRouter([
           // Quản lý khóa học
           {
             path: "courses",
-            element: <PlaceholderPage title="Danh sách khóa học" />,
+            element: <CourseManagement />,
           },
 {
             path: "courses/videos",

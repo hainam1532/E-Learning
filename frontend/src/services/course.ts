@@ -1,6 +1,25 @@
 import api from "./api";
 
-// Types
+// Types - Academy with users for course management
+export interface Academy {
+  id: number;
+  name_vi?: string;
+  name_en?: string;
+  name_zh?: string;
+  code: string;
+  description?: string;
+  isPublic: boolean;
+  users?: AcademyUser[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AcademyUser {
+  id: number;
+  usercode: string;
+  fullName?: string;
+}
+
 export interface Course {
   id: number;
   title_vi?: string;
@@ -28,14 +47,14 @@ export interface Course {
   updatedAt: string;
 }
 
-export interface Academy {
+// Course Rule - inline definition to avoid circular dependency with backend types
+export interface CourseRule {
   id: number;
-  name_vi?: string;
-  name_en?: string;
-  name_zh?: string;
-  code: string;
-  description?: string;
-  isPublic: boolean;
+  antiFastForward: boolean;
+  lockSpeed1x: boolean;
+  showWatermark: boolean;
+  blockDownload: boolean;
+  requireFullCompletion: boolean;
 }
 
 export interface CourseCategory {
@@ -68,15 +87,6 @@ export interface CourseVideo {
   videoId: number;
   order: number;
   video?: Video;
-}
-
-export interface CourseRule {
-  id: number;
-  antiFastForward: boolean;
-  lockSpeed1x: boolean;
-  showWatermark: boolean;
-  blockDownload: boolean;
-  requireFullCompletion: boolean;
 }
 
 export interface Lesson {
@@ -129,6 +139,21 @@ export async function updateCourse(id: number, data: Partial<Course>): Promise<C
 
 export async function deleteCourse(id: number): Promise<void> {
   await api.delete(`/courses/${id}`);
+}
+
+export async function uploadCourseCover(id: number, file: File): Promise<{ success: boolean; coverImage: string }> {
+  const formData = new FormData();
+  formData.append("cover", file);
+  const response = await api.post<{ success: boolean; data: { coverImage: string } }>(
+    `/courses/${id}/cover`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return { success: response.data.success, coverImage: response.data.data.coverImage };
 }
 
 // Course Category API
@@ -193,4 +218,32 @@ export async function getLessons(): Promise<Lesson[]> {
 export async function getLessonsByCourse(courseId: number): Promise<Lesson[]> {
   const response = await api.get<LessonsResponse>(`/courses/${courseId}/lessons`);
   return response.data.data;
+}
+
+// Get Academies for course selection
+export async function getAcademies(): Promise<Academy[]> {
+  const { authGet } = await import("./auth/auth.get");
+  const response = await authGet.getAcademies();
+  return response.data.academies;
+}
+
+// Get courses filtered by academy
+export async function getCoursesByAcademy(academyId: number): Promise<Course[]> {
+  const response = await api.get<CoursesResponse>("/courses", {
+    params: { academyId },
+  });
+  return response.data.data;
+}
+
+// Get Users (Instructors) for course selection
+export async function getInstructors(): Promise<User[]> {
+  const { authGet } = await import("./auth/auth.get");
+  const response = await authGet.getUsers();
+  return response.data.users;
+}
+
+// Get Videos for course selection
+export async function getVideos(): Promise<Video[]> {
+  const { getVideos: fetchVideos } = await import("./video/video.get");
+  return fetchVideos();
 }
