@@ -11,6 +11,8 @@ import RoleManagement from "../pages/admin/RoleManagement";
 import DepartmentManagement from "../pages/admin/DepartmentManagement";
 import PositionManagement from "../pages/admin/PositionManagement";
 import SystemConfig from "../pages/admin/SystemConfig";
+import VideoLibrary from "../pages/admin/VideoLibrary";
+import AcademyManagement from "../pages/admin/AcademyManagement";
 
 // Placeholder components for new menu items
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -71,18 +73,22 @@ export const router = createBrowserRouter([
             path: "roles",
             element: <RoleManagement />,
           },
-          {
+{
             path: "config",
             element: <SystemConfig />,
+          },
+          {
+            path: "academies",
+            element: <AcademyManagement />,
           },
           // Quản lý khóa học
           {
             path: "courses",
             element: <PlaceholderPage title="Danh sách khóa học" />,
           },
-          {
+{
             path: "courses/videos",
-            element: <PlaceholderPage title="Thư viện video" />,
+            element: <VideoLibrary />,
           },
           {
             path: "courses/cards",

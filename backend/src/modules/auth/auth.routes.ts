@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
-import { login, refresh, logout, getProfile, getUsers, getUser, createUser, updateUser, deleteUser, getDepartments, createDepartment, updateDepartment, deleteDepartment, getPositions, createPosition, updatePosition, deletePosition, getConfigs, setConfig, deleteConfig, importUsers, exportUserTemplate } from './auth.controller';
+import { login, refresh, logout, getProfile, getUsers, getUser, createUser, updateUser, deleteUser, getDepartments, createDepartment, updateDepartment, deleteDepartment, getPositions, createPosition, updatePosition, deletePosition, getConfigs, setConfig, deleteConfig, getAcademies, getAcademy, createAcademy, updateAcademy, deleteAcademy, getAcademyUsers, addAcademyUser, removeAcademyUser, importUsers, exportUserTemplate } from './auth.controller';
 import { authMiddleware } from '../../middlewares/auth';
 
 const router = Router();
@@ -46,5 +46,15 @@ router.delete('/positions/:id', authMiddleware, deletePosition);
 router.get('/configs', authMiddleware, getConfigs);
 router.post('/configs', authMiddleware, setConfig);
 router.delete('/configs/:key', authMiddleware, deleteConfig);
+
+// ============ ACADEMY MANAGEMENT ============
+router.get('/academies', authMiddleware, getAcademies);
+router.get('/academies/:id', authMiddleware, getAcademy);
+router.post('/academies', authMiddleware, createAcademy);
+router.put('/academies/:id', authMiddleware, updateAcademy);
+router.delete('/academies/:id', authMiddleware, deleteAcademy);
+router.get('/academies/:id/users', authMiddleware, getAcademyUsers);
+router.post('/academies/:id/users', authMiddleware, addAcademyUser);
+router.delete('/academies/:id/users/:userId', authMiddleware, removeAcademyUser);
 
 export default router;

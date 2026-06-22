@@ -32,6 +32,7 @@ import {
   MenuOutlined,
 } from '@ant-design/icons';
 import { useState, type ReactNode, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../components/LanguageSelector';
 
 // TypeScript interfaces for menu structure
@@ -51,7 +52,8 @@ interface MenuItem {
 }
 
 export default function AdminLayout() {
-  const { user, logout } = useAuthStore();
+  const { t } = useTranslation();
+  const { user, logout } = useAuthStore()
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
@@ -87,7 +89,7 @@ export default function AdminLayout() {
     navigate('/login');
   };
 
-  const userMenuItems: MenuProps['items'] = [
+const userMenuItems: MenuProps['items'] = [
     {
       key: 'profile',
       label: <span className="font-semibold">{user?.name}</span>,
@@ -99,78 +101,79 @@ export default function AdminLayout() {
     {
       key: 'home',
       icon: <HomeOutlined />,
-      label: <Link to="/">Trang Học Viên</Link>,
+      label: <Link to="/">{t('common.home')}</Link>,
     },
     {
       key: 'logout',
       danger: true,
       icon: <LogoutOutlined />,
-      label: 'Đăng xuất',
+      label: t('common.logout'),
       onClick: handleLogout,
     },
   ];
 
-  const menuItems: MenuItem[] = [
+const menuItems: MenuItem[] = [
     {
       key: 'dashboard',
       path: '/admin',
-      name: 'Tổng quan',
+      name: t('menu.dashboard'),
       icon: <DashboardOutlined />
     },
-    {
+{
       key: 'system',
-      name: 'Quản lý hệ thống',
+      name: t('menu.system'),
       icon: <SettingOutlined />,
       children: [
-        { key: 'users', path: '/admin/users', name: 'Quản lý User', icon: <UserAddOutlined /> },
-        { key: 'departments', path: '/admin/departments', name: 'Phòng ban', icon: <BankOutlined /> },
-        { key: 'positions', path: '/admin/positions', name: 'Chức vụ', icon: <IdcardOutlined /> },
-        { key: 'roles', path: '/admin/roles', name: 'Phân quyền', icon: <SafetyOutlined /> },
-        { key: 'config', path: '/admin/config', name: 'Cấu hình', icon: <KeyOutlined /> },
+        { key: 'users', path: '/admin/users', name: t('menu.users'), icon: <UserAddOutlined /> },
+        { key: 'departments', path: '/admin/departments', name: t('menu.departments'), icon: <BankOutlined /> },
+        { key: 'positions', path: '/admin/positions', name: t('menu.positions'), icon: <IdcardOutlined /> },
+        { key: 'roles', path: '/admin/roles', name: t('menu.roles'), icon: <SafetyOutlined /> },
+        { key: 'config', path: '/admin/config', name: t('menu.config'), icon: <KeyOutlined /> },
+        { key: 'academies', path: '/admin/academies', name: t('menu.academies'), icon: <BankOutlined /> },
       ],
     },
     {
       key: 'courses',
-      name: 'Quản lý khóa học',
+      name: t('menu.courses'),
       icon: <BookOutlined />,
       children: [
-        { key: 'courses-list', path: '/admin/courses', name: 'Danh sách khóa học', icon: <AppstoreOutlined /> },
-        { key: 'courses-video', path: '/admin/courses/videos', name: 'Thư viện video', icon: <VideoCameraOutlined /> },
-        { key: 'courses-card', path: '/admin/courses/cards', name: 'Thẻ khóa học', icon: <CreditCardOutlined /> },
-        { key: 'courses-category', path: '/admin/courses/categories', name: 'Danh mục khóa học', icon: <FolderOutlined /> },
-        { key: 'courses-special', path: '/admin/courses/special-topics', name: 'Chủ đề đặc biệt', icon: <TagOutlined /> },
+        { key: 'courses-list', path: '/admin/courses', name: t('menu.coursesList'), icon: <AppstoreOutlined /> },
+        { key: 'courses-video', path: '/admin/courses/videos', name: t('menu.coursesVideo'), icon: <VideoCameraOutlined /> },
+        { key: 'courses-card', path: '/admin/courses/cards', name: t('menu.coursesCard'), icon: <CreditCardOutlined /> },
+        { key: 'courses-category', path: '/admin/courses/categories', name: t('menu.coursesCategory'), icon: <FolderOutlined /> },
+        { key: 'courses-special', path: '/admin/courses/special-topics', name: t('menu.coursesSpecial'), icon: <TagOutlined /> },
       ],
     },
     {
       key: 'training',
-      name: 'Quản lý đào tạo',
+      name: t('menu.training'),
       icon: <ReadOutlined />,
       children: [
-        { key: 'training-path', path: '/admin/training/paths', name: 'Lộ trình học tập', icon: <SolutionOutlined /> },
-        { key: 'training-doc', path: '/admin/training/documents', name: 'Thư viện tài liệu', icon: <FileTextOutlined /> },
-        { key: 'training-location', path: '/admin/training/locations', name: 'Địa điểm đào tạo', icon: <EnvironmentOutlined /> },
-        { key: 'training-plan', path: '/admin/training/plans', name: 'Kế hoạch đào tạo', icon: <CalendarOutlined /> },
-        { key: 'training-class', path: '/admin/training/classes', name: 'Quản lý lớp học', icon: <TeamOutlined /> },
-        { key: 'training-instructor', path: '/admin/training/instructors', name: 'Quản lý giảng viên', icon: <AuditOutlined /> },
+        { key: 'training-path', path: '/admin/training/paths', name: t('menu.trainingPath'), icon: <SolutionOutlined /> },
+        { key: 'training-doc', path: '/admin/training/documents', name: t('menu.trainingDoc'), icon: <FileTextOutlined /> },
+        { key: 'training-location', path: '/admin/training/locations', name: t('menu.trainingLocation'), icon: <EnvironmentOutlined /> },
+        { key: 'training-plan', path: '/admin/training/plans', name: t('menu.trainingPlan'), icon: <CalendarOutlined /> },
+        { key: 'training-class', path: '/admin/training/classes', name: t('menu.trainingClass'), icon: <TeamOutlined /> },
+        { key: 'training-instructor', path: '/admin/training/instructors', name: t('menu.trainingInstructor'), icon: <AuditOutlined /> },
       ],
     },
     {
       key: 'exam',
-      name: 'Quản lý kỳ thi',
+      name: t('menu.exam'),
       icon: <SolutionOutlined />,
       children: [
-        { key: 'exam-questions', path: '/admin/exam/questions', name: 'Ngân hàng câu hỏi', icon: <ReadOutlined /> },
-        { key: 'exam-papers', path: '/admin/exam/papers', name: 'Quản lý đề thi', icon: <FileTextOutlined /> },
-        { key: 'exam-sessions', path: '/admin/exam/sessions', name: 'Quản lý kỳ thi', icon: <CalendarOutlined /> },
+        { key: 'exam-questions', path: '/admin/exam/questions', name: t('menu.examQuestions'), icon: <ReadOutlined /> },
+        { key: 'exam-papers', path: '/admin/exam/papers', name: t('menu.examPapers'), icon: <FileTextOutlined /> },
+        { key: 'exam-sessions', path: '/admin/exam/sessions', name: t('menu.examSessions'), icon: <CalendarOutlined /> },
       ],
     },
     {
       key: 'reports',
-      name: 'Báo cáo dữ liệu',
+      name: t('menu.reports'),
       icon: <BarChartOutlined />,
       children: [
-        { key: 'reports-overview', path: '/admin/reports/overview', name: 'Báo cáo tổng quan học tập', icon: <BarChartOutlined /> },
-        { key: 'reports-time', path: '/admin/reports/time', name: 'Báo cáo thời gian học tập', icon: <ClockCircleOutlined /> },
+        { key: 'reports-overview', path: '/admin/reports/overview', name: t('menu.reportsOverview'), icon: <BarChartOutlined /> },
+        { key: 'reports-time', path: '/admin/reports/time', name: t('menu.reportsTime'), icon: <ClockCircleOutlined /> },
       ],
     },
   ];
@@ -291,14 +294,14 @@ export default function AdminLayout() {
           )}
         </nav>
 
-        {/* Sidebar Footer / Back to User Site */}
+{/* Sidebar Footer / Back to User Site */}
         <div className="p-3 border-t border-slate-200 bg-slate-50">
           <Link
             to="/"
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 hover:bg-slate-100 font-medium text-sm transition-colors"
           >
             <span className="text-lg flex items-center"><HomeOutlined /></span>
-            {!collapsed && <span>Về Trang Chủ</span>}
+            {!collapsed && <span>{t('common.backHome')}</span>}
           </Link>
         </div>
       </aside>
@@ -432,7 +435,7 @@ export default function AdminLayout() {
           })}
         </div>
 
-        {/* Mobile Footer */}
+{/* Mobile Footer */}
         <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-slate-200 bg-slate-50">
           <Link
             to="/"
@@ -440,7 +443,7 @@ export default function AdminLayout() {
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 hover:bg-slate-100 font-medium text-sm transition-colors"
           >
             <span className="text-lg flex items-center"><HomeOutlined /></span>
-            <span>Về Trang Chủ</span>
+            <span>{t('common.backHome')}</span>
           </Link>
         </div>
       </Drawer>

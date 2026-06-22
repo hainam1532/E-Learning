@@ -26,9 +26,13 @@ model User {
   department  Department? @relation(fields: [departmentId], references: [id])
   position     Position?   @relation(fields: [positionId], references: [id])
 
-  refreshTokens RefreshToken[]
-  progresses    LearningProgress[]
-  enrollments   Enrollment[]
+  // Khóa học giảng dạy
+  courses     Course[]
+
+refreshTokens    RefreshToken[]
+  progresses     LearningProgress[]
+  enrollments    Enrollment[]
+  academyEnrollments AcademyEnrollment[]
 
   createdAt DateTime @default(now())
 
@@ -99,17 +103,112 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-model Course {
+// Danh mục khóa học
+model CourseCategory {
   id          Int      @id @default(autoincrement())
-  title       String
+  name_vi     String?
+  name_en     String?
+  name_zh     String?
+  code        String   @unique
   description String?
+  
+  courses     Course[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  lessons     Lesson[]
-  enrollments Enrollment[]
+  @@map("course_categories")
+}
+
+// Quy tắc khóa học
+model CourseRule {
+  id                    Int      @id @default(autoincrement())
+  antiFastForward       Boolean  @default(false)  // Chống tua nhanh
+  lockSpeed1x           Boolean  @default(false)  // Khóa tốc độ 1x
+  showWatermark         Boolean  @default(false)  // Hiển thị watermark
+  blockDownload         Boolean  @default(false)  // Chặn tải xuống
+  requireFullCompletion Boolean  @default(false)  // Yêu cầu hoàn thành 100% video
+
+  course                Course?  @relation(fields: [courseId], references: [id])
+  courseId              Int?      @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("course_rules")
+}
+
+model Course {
+  id              Int      @id @default(autoincrement())
+  
+  // Tiêu đề đa ngôn ngữ
+  title_vi         String?
+  title_en         String?
+  title_zh         String?
+  
+  // Mô tả đa ngôn ngữ
+  description_vi   String?
+  description_en   String?
+  description_zh  String?
+  
+  // Ảnh bìa
+  coverImage       String?
+  
+  // Trạng thái công khai
+  isPublic        Boolean  @default(false)
+  
+  // Điểm số đánh giá
+  rating          Float    @default(0)
+  
+  // Ngôn ngữ đào tạo
+  language        String?  // e.g., "vi", "en", "zh"
+  
+  // Nhóm đối tượng đào tạo
+  targetAudience  String?
+  
+  // Lợi ích khóa học (JSON array)
+  benefits       Json?
+  
+  // Thẻ khóa học (JSON array)
+  tags           Json?
+  
+  // Quan hệ
+  academy        Academy?          @relation(fields: [academyId], references: [id])
+  academyId      Int?
+  
+  category      CourseCategory?    @relation(fields: [categoryId], references: [id])
+  categoryId    Int?
+  
+  instructor    User?             @relation(fields: [instructorId], references: [id])
+  instructorId Int?
+
+  lessons       Lesson[]
+  enrollments  Enrollment[]
+  courseVideos CourseVideo[]
+  rule         CourseRule?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("courses")
+}
+
+// Liên kết Course với Video (nhiều video cho 1 khóa học)
+model CourseVideo {
+  id        Int   @id @default(autoincrement())
+
+  courseId  Int
+  videoId   Int
+
+  course    Course @relation(fields: [courseId], references: [id])
+  video     Video  @relation(fields: [videoId], references: [id])
+
+  order     Int    @default(0)  // Thứ tự video
 
   createdAt DateTime @default(now())
 
-  @@map("courses")
+  @@unique([courseId, videoId])
+  @@map("course_videos")
 }
 
 model Lesson {
@@ -126,16 +225,31 @@ model Lesson {
   @@map("lessons")
 }
 
+enum VideoStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model Video {
   id        Int    @id @default(autoincrement())
 
-  lessonId  Int    @unique
-  lesson    Lesson @relation(fields: [lessonId], references: [id])
+  lessonId  Int?   @unique
+  lesson    Lesson? @relation(fields: [lessonId], references: [id])
 
   bucket    String
-  path      String   // index.m3u8
+  path      String   // Original video source path (e.g., uploads/uuid.mp4)
+  hlsPath   String?  // HLS output path (e.g., hls/25)
+  
+  name      String?  // Video name/label
+  thumbnailUrl String?  // Thumbnail image URL
 
   duration  Int?
+  status    VideoStatus @default(PROCESSING)
+  progress  Int       @default(0)  // Processing progress 0-100%
+
+  // Khóa học có video này
+  courseVideos CourseVideo[]
 
   @@map("videos")
 }
@@ -170,4 +284,41 @@ model LearningProgress {
   updatedAt DateTime @updatedAt
 
   @@map("learning_progress")
+}
+
+// Học viện (Academy)
+model Academy {
+  id          Int      @id @default(autoincrement())
+  name_vi     String?
+  name_en     String?
+  name_zh     String?
+  code        String   @unique
+  description String?
+  isPublic    Boolean  @default(false) // true = all users can access, false = only assigned users
+  
+  // Khóa học thuộc học viện
+  courses     Course[]
+  
+  enrollments AcademyEnrollment[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("academies")
+}
+
+// Liên kết User với Academy (khi isPublic = false)
+model AcademyEnrollment {
+  id        Int   @id @default(autoincrement())
+
+  userId    Int
+  academyId Int
+
+  user      User   @relation(fields: [userId], references: [id])
+  academy   Academy @relation(fields: [academyId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, academyId])
+  @@map("academy_enrollments")
 }

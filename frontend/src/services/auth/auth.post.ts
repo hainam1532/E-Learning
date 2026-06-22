@@ -89,7 +89,7 @@ export const authPost = {
   deleteConfig: (key: string) =>
     api.delete(`/auth/configs/${key}`),
 
-  // ============ IMPORT USERS ============
+// ============ IMPORT USERS ============
   /**
    * Import users from Excel file (Admin)
    */
@@ -100,4 +100,35 @@ export const authPost = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+
+  // ============ ACADEMY MANAGEMENT ============
+  /**
+   * Create academy (Admin)
+   */
+  createAcademy: (data: { name_vi: string; name_en?: string; name_zh?: string; code: string; description?: string; isPublic?: boolean }) =>
+    api.post('/auth/academies', data),
+
+  /**
+   * Update academy (Admin)
+   */
+  updateAcademy: (id: number, data: { name_vi?: string; name_en?: string; name_zh?: string; description?: string; isPublic?: boolean }) =>
+    api.put(`/auth/academies/${id}`, data),
+
+  /**
+   * Delete academy (Admin)
+   */
+  deleteAcademy: (id: number) =>
+    api.delete(`/auth/academies/${id}`),
+
+  /**
+   * Add user to academy (Admin)
+   */
+  addUserToAcademy: (academyId: number, userId: number) =>
+    api.post(`/auth/academies/${academyId}/users`, { userId }),
+
+  /**
+   * Remove user from academy (Admin)
+   */
+  removeUserFromAcademy: (academyId: number, userId: number) =>
+    api.delete(`/auth/academies/${academyId}/users/${userId}`),
 };

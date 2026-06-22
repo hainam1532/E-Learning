@@ -26,4 +26,14 @@ export const authGet = {
    * Get all system configs (Admin)
    */
   getConfigs: () => api.get('/auth/configs'),
+
+/**
+   * Get all academies (Admin)
+   */
+  getAcademies: () => api.get('/auth/academies'),
+
+  /**
+   * Get academy users (Admin)
+   */
+  getAcademyUsers: (academyId: number) => api.get(`/auth/academies/${academyId}/users`),
 };

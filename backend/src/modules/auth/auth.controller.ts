@@ -867,7 +867,7 @@ export const deleteConfig = async (req: Request, res: Response) => {
       return;
     }
 
-const configKey = String(req.params.key);
+    const configKey = String(req.params.key);
 
     if (!configKey) {
       res.status(400).json({ message: 'Config key is required' });
@@ -877,6 +877,277 @@ const configKey = String(req.params.key);
     await prisma.systemConfig.delete({ where: { configKey } });
 
     res.status(200).json({ message: 'Config deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// ============ ACADEMY MANAGEMENT ============
+
+// Get all academies
+export const getAcademies = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const academies = await prisma.academy.findMany({
+      orderBy: { id: 'asc' },
+      include: {
+        enrollments: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                usercode: true,
+                fullName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Transform to add users array
+    const result = academies.map(academy => ({
+      ...academy,
+      users: academy.enrollments.map(e => e.user),
+      enrollments: undefined, // Remove raw enrollments
+    }));
+
+    res.status(200).json({ academies: result });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Get single academy
+export const getAcademy = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const id = parseInt(safeParamString(req.params.id));
+
+    if (isNaN(id)) {
+      res.status(400).json({ message: req.t('INVALID_ID') });
+      return;
+    }
+
+    const academy = await prisma.academy.findUnique({
+      where: { id },
+    });
+
+    if (!academy) {
+      res.status(404).json({ message: 'Academy not found' });
+      return;
+    }
+
+    res.status(200).json({ academy });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Create academy
+export const createAcademy = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const name_vi = getBodyString(req.body.name_vi);
+    const name_en = getBodyString(req.body.name_en);
+    const name_zh = getBodyString(req.body.name_zh);
+    const code = getBodyString(req.body.code);
+    const description = getBodyString(req.body.description);
+    const isPublic = req.body.isPublic === true;
+
+    if (!name_vi || !code) {
+      res.status(400).json({ message: 'name_vi and code are required' });
+      return;
+    }
+
+    // Check duplicate code
+    const existing = await prisma.academy.findUnique({ where: { code } });
+    if (existing) {
+      res.status(400).json({ message: 'Academy code already exists' });
+      return;
+    }
+
+    const academy = await prisma.academy.create({
+      data: { name_vi, name_en, name_zh, code, description, isPublic },
+    });
+
+    res.status(201).json({ message: 'Academy created successfully', academy });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Update academy
+export const updateAcademy = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const id = parseInt(safeParamString(req.params.id));
+    const name_vi = getBodyString(req.body.name_vi);
+    const name_en = getBodyString(req.body.name_en);
+    const name_zh = getBodyString(req.body.name_zh);
+    const description = getBodyString(req.body.description);
+    const isPublic = req.body.isPublic !== undefined ? req.body.isPublic === true : undefined;
+
+    const academy = await prisma.academy.update({
+      where: { id },
+      data: { name_vi, name_en, name_zh, description, isPublic },
+    });
+
+    res.status(200).json({ message: 'Academy updated successfully', academy });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Delete academy
+export const deleteAcademy = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const id = parseInt(safeParamString(req.params.id));
+
+    // Delete enrollments first
+    await prisma.academyEnrollment.deleteMany({ where: { academyId: id } });
+
+    // Then delete academy
+    await prisma.academy.delete({ where: { id } });
+
+    res.status(200).json({ message: 'Academy deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Get academy users (when isPublic = false)
+export const getAcademyUsers = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const academyId = parseInt(safeParamString(req.params.id));
+
+    if (isNaN(academyId)) {
+      res.status(400).json({ message: req.t('INVALID_ID') });
+      return;
+    }
+
+    const enrollments = await prisma.academyEnrollment.findMany({
+      where: { academyId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            usercode: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({ users: enrollments.map(e => e.user) });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Add user to academy
+export const addAcademyUser = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const academyId = parseInt(safeParamString(req.params.id));
+    const userId = req.body.userId ? parseInt(String(req.body.userId)) : null;
+
+    if (isNaN(academyId) || !userId) {
+      res.status(400).json({ message: 'academyId and userId are required' });
+      return;
+    }
+
+    // Check if academy exists
+    const academy = await prisma.academy.findUnique({ where: { id: academyId } });
+    if (!academy) {
+      res.status(404).json({ message: 'Academy not found' });
+      return;
+    }
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    // Create enrollment
+    const enrollment = await prisma.academyEnrollment.create({
+      data: { academyId, userId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            usercode: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    res.status(201).json({ message: 'User added to academy', user: enrollment.user });
+  } catch (error: any) {
+    // P2002 is unique constraint violation (already exists)
+    if (error.code === 'P2002') {
+      res.status(400).json({ message: 'User already in academy' });
+      return;
+    }
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Remove user from academy
+export const removeAcademyUser = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const academyId = parseInt(safeParamString(req.params.id));
+    const userId = parseInt(safeParamString(req.params.userId));
+
+    if (isNaN(academyId) || isNaN(userId)) {
+      res.status(400).json({ message: 'academyId and userId are required' });
+      return;
+    }
+
+    await prisma.academyEnrollment.deleteMany({
+      where: { academyId, userId },
+    });
+
+    res.status(200).json({ message: 'User removed from academy' });
   } catch (error) {
     res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
   }

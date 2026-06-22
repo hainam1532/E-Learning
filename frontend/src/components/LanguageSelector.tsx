@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Dropdown, type MenuProps } from 'antd';
 import { GlobalOutlined } from '@ant-design/icons';
 import i18n from '../utils/i18n';
@@ -9,7 +10,18 @@ const languages = [
 ];
 
 export default function LanguageSelector() {
-  const currentLang = languages.find((l) => l.code === i18n.language) || languages[0];
+  const [currentLang, setCurrentLang] = useState(
+    languages.find((l) => l.code === i18n.language) || languages[0]
+  );
+
+  useEffect(() => {
+    const handleLangChange = (lang: string) => {
+      setCurrentLang(languages.find((l) => l.code === lang) || languages[0]);
+    };
+
+    i18n.on('languageChanged', handleLangChange);
+    return () => i18n.off('languageChanged', handleLangChange);
+  }, []);
 
   const handleChangeLanguage: MenuProps['onClick'] = ({ key }) => {
     i18n.changeLanguage(key as string);
@@ -38,6 +50,7 @@ export default function LanguageSelector() {
       >
         <GlobalOutlined />
         <span>{currentLang.flag}</span>
+        {/* <span className="text-xs">{currentLang.code.toUpperCase()}</span> */}
       </button>
     </Dropdown>
   );
