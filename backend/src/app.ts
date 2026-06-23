@@ -7,6 +7,9 @@ import authRoutes from "./modules/auth/auth.routes";
 import videoRoutes from "./modules/video/video.routes";
 import courseRoutes from "./modules/course/course.routes";
 import progressRoutes from "./modules/progress/progress.routes";
+import trainingRoutes from "./modules/training/training.routes";
+import { prisma } from "./config/db";
+import { redisClient } from "./config/redis";
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -42,10 +45,42 @@ app.use("/api/auth", authRoutes);
 app.use("/api/videos", videoRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/progress", progressRoutes);
+app.use("/api/training", trainingRoutes);
 
 // Test endpoint
 app.get("/api/ping", (req, res) => {
   res.json({ message: "pong", lang: req.language });
+});
+
+// Health check endpoint - verify database and Redis connections
+app.get("/api/health", async (req, res) => {
+  const health = {
+    status: 'ok',
+    database: 'unhealthy',
+    redis: 'unhealthy',
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    // Check database connection
+    await prisma.$queryRaw`SELECT 1`;
+    health.database = 'healthy';
+  } catch (error) {
+    health.status = 'unhealthy';
+    console.error('Database health check failed:', error);
+  }
+
+  try {
+    // Check Redis connection
+    await redisClient.ping();
+    health.redis = 'healthy';
+  } catch (error) {
+    health.status = 'unhealthy';
+    console.error('Redis health check failed:', error);
+  }
+
+  const statusCode = health.status === 'ok' ? 200 : 503;
+  res.status(statusCode).json(health);
 });
 
 export default app;

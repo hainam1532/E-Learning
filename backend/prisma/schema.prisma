@@ -33,6 +33,7 @@ refreshTokens    RefreshToken[]
   progresses     LearningProgress[]
   enrollments    Enrollment[]
   academyEnrollments AcademyEnrollment[]
+  classEnrollments ClassEnrollment[]
 
   createdAt DateTime @default(now())
 
@@ -219,7 +220,8 @@ model Lesson {
   courseId  Int
   course    Course  @relation(fields: [courseId], references: [id])
 
-  video     Video?
+  videoId   Int?
+  video    Video?  @relation(fields: [videoId], references: [id])
   progresses LearningProgress[]
 
   @@map("lessons")
@@ -302,6 +304,10 @@ model Academy {
   
   enrollments AcademyEnrollment[]
   
+  // Lớp học và kế hoạch đào tạo thuộc học viện
+  trainingClasses TrainingClass[]
+  trainingPlans  TrainingPlan[]
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -322,4 +328,183 @@ model AcademyEnrollment {
 
   @@unique([userId, academyId])
   @@map("academy_enrollments")
+}
+
+// ==================== TRAINING PLAN MODELS ====================
+
+// Lớp học (Training Class)
+model TrainingClass {
+  id          Int      @id @default(autoincrement())
+  name_vi     String?
+  name_en     String?
+  name_zh     String?
+  code        String   @unique
+  description String?
+  description_vi   String?
+  description_en   String?
+  description_zh  String?
+  
+  // Nội dung đào tạo
+  content_vi       String?
+  content_en       String?
+  content_zh      String?
+  
+  // Mục tiêu đào tạo
+  objectives_vi    String?
+  objectives_en    String?
+  objectives_zh   String?
+  
+  // Đối tượng tham gia
+  targetAudience  String?
+  
+  // Thời gian bắt đầu và kết thúc
+  startDate        DateTime?
+  endDate          DateTime?
+  
+  // Quan hệ
+  academyId   Int?
+  academy    Academy?  @relation(fields: [academyId], references: [id])
+  
+  // Giảng viên phụ trách
+  lecturerId  Int?
+  lecturer   Lecturer? @relation(fields: [lecturerId], references: [id])
+  
+  // Kế hoạch đào tạo thuộc lớp này
+  trainingPlans TrainingPlan[]
+  
+  // Học viên trong lớp
+  enrollments ClassEnrollment[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("training_classes")
+}
+
+// Học viên trong lớp học
+model ClassEnrollment {
+  id        Int   @id @default(autoincrement())
+
+  userId    Int
+  classId   Int
+
+  user      User   @relation(fields: [userId], references: [id])
+  class     TrainingClass @relation(fields: [classId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, classId])
+  @@map("class_enrollments")
+}
+
+// Kế hoạch đào tạo (Training Plan)
+model TrainingPlan {
+  id              Int      @id @default(autoincrement())
+  
+  // Tiêu đề đa ngôn ngữ
+  title_vi         String?
+  title_en         String?
+  title_zh         String?
+  
+  // Mô tả đa ngôn ngữ
+  description_vi   String?
+  description_en  String?
+  description_zh  String?
+  
+  // Ảnh bìa
+  coverImage       String?
+  
+  // Thời gian bắt đầu và kết thúc
+  startDate        DateTime?
+  endDate          DateTime?
+  
+// Trạng thái (DRAFT, ACTIVE, COMPLETED, CANCELLED)
+  status          String          @default("DRAFT")
+  
+  // Quan hệ
+  academy        Academy?          @relation(fields: [academyId], references: [id])
+  academyId      Int?
+  
+  trainingClass  TrainingClass?    @relation(fields: [trainingClassId], references: [id])
+  trainingClassId Int?
+  
+  // Tài nguyên đào tạo (khóa học, kỳ thi, tài liệu)
+  resources       TrainingResource[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("training_plans")
+}
+
+enum TrainingPlanStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+// Tài nguyên của kế hoạch đào tạo
+model TrainingResource {
+  id              Int      @id @default(autoincrement())
+  
+// Loại tài nguyên (COURSE, EXAM, DOCUMENT)
+  type            String
+  
+  // ID tham chiếu (courseId, examId, documentId)
+  refId           Int
+  
+  // Tên tài nguyên
+  title_vi        String?
+  title_en        String?
+  title_zh        String?
+  
+  // Thứ tự hiển thị
+  order           Int      @default(0)
+  
+  // Kế hoạch cha
+  trainingPlan    TrainingPlan @relation(fields: [trainingPlanId], references: [id])
+  trainingPlanId Int
+  
+  createdAt DateTime @default(now())
+
+  @@map("training_resources")
+}
+
+enum TrainingResourceType {
+  COURSE
+  EXAM
+  DOCUMENT
+}
+
+// Loại giảng viên
+enum LecturerType {
+  INTERNAL  // Nội bộ
+  EXTERNAL  // Bên ngoài
+}
+
+// Giới tính
+enum LecturerGender {
+  MALE
+  FEMALE
+}
+
+// Giảng viên (Lecturer)
+model Lecturer {
+  id        Int          @id @default(autoincrement())
+  code      String       @unique  // Mã giảng viên
+  name      String?      // Tên giảng viên
+  type      LecturerType @default(INTERNAL)  // Loại giảng viên
+  gender   LecturerGender @default(MALE)  // Giới tính
+  phone    String?      // Số điện thoại
+  email    String?      // Email (chỉ cho giảng viên bên ngoài)
+  address  String?      // Địa chỉ (chỉ cho giảng viên bên ngoài)
+  
+  // Lớp học phụ trách
+  trainingClasses TrainingClass[]
+  
+  createdAt DateTime    @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("lecturers")
 }

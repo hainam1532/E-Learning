@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { Dropdown, Avatar, Button, Select, type MenuProps, Drawer, Menu } from 'antd';
 import { UserOutlined, LogoutOutlined, AppstoreOutlined, HomeOutlined, MenuOutlined } from '@ant-design/icons';
 import LanguageSelector from '../components/LanguageSelector';
-import { getAcademies } from '../services/course';
+import { authGet } from '../services/auth/auth.get';
 import type { Academy } from '../services/course';
 
 export default function UserLayout() {
@@ -35,11 +35,21 @@ export default function UserLayout() {
     return academy.name_vi || '';
   };
 
-  // Fetch academies on mount
+// Fetch academies on mount
   useEffect(() => {
     const fetchAcademies = async () => {
       try {
-        const data = await getAcademies();
+        let data: Academy[];
+        
+        // Use admin endpoint only for admin users, public endpoint for everyone else
+        if (isAuthenticated && user?.role === 'admin') {
+          const response = await authGet.getAcademies();
+          data = response.data.academies;
+        } else {
+          const response = await authGet.getPublicAcademies();
+          data = response.data.academies;
+        }
+        
         const filteredAcademies = filterAcademiesForUser(data, user?.id);
         setAcademies(filteredAcademies);
       } catch (error) {
@@ -47,7 +57,7 @@ export default function UserLayout() {
       }
     };
     fetchAcademies();
-  }, [user?.id]);
+  }, [user?.id, user?.role, isAuthenticated]);
 
   // Handle logout
   const handleLogout = () => {
@@ -205,17 +215,10 @@ export default function UserLayout() {
                 />
               </Dropdown>
             </div>
-          ) : (
+) : (
             <div className="flex items-center gap-2">
               <Button type="text" onClick={() => navigate('/login')} className="font-medium text-slate-600 hover:text-blue-600">
                 Đăng nhập
-              </Button>
-              <Button
-                type="primary"
-                onClick={() => navigate('/login')}
-                className="bg-blue-600 hover:bg-blue-700 border-none shadow-md shadow-blue-500/20 font-semibold px-5 rounded-lg"
-              >
-                Đăng ký
               </Button>
             </div>
           )}

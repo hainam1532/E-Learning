@@ -343,20 +343,16 @@ const handleRemoveUser = async (userId: number) => {
             <Input.TextArea placeholder={t('academy.descriptionPlaceholder') || 'Optional description'} rows={2} />
           </Form.Item>
 
-          <Form.Item
+<Form.Item
             name="isPublic"
             label={t('academy.isPublic') || 'Public'}
             valuePropName="checked"
           >
-            <Switch 
-              onChange={(checked) => form.setFieldsValue({ isPublic: checked })} 
-            />
-            <span className="ml-2 text-sm text-slate-500">
-              {form.getFieldValue('isPublic') 
-                ? t('academy.isPublicDesc') 
-                : t('academy.isPrivateDesc')}
-            </span>
+            <Switch />
           </Form.Item>
+          <div className="text-sm text-slate-500">
+            {t('academy.isPublicDesc') || 'Public academy - all users can access'}
+          </div>
 
           <Form.Item className="mb-0 flex justify-end gap-2">
             <Button onClick={() => setModalVisible(false)}>

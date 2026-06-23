@@ -19,7 +19,8 @@
     "cancel": "取消",
     "refresh": "刷新",
     "yes": "是",
-    "no": "否"
+    "no": "否",
+    "search": "搜索"
   },
   "home": {
     "heroTitle": "学习平台",
@@ -36,7 +37,8 @@
     "duration": "学习时长",
     "level": "级别",
     "learnNow": "立即学习",
-    "students": "学生"
+    "students": "学生",
+    "noCourses": "暂无课程可显示。"
   },
   "login": {
     "welcomeBack": "欢迎回来",
@@ -255,6 +257,34 @@
     "uploadFailed": "无法上传视频",
     "updateFailed": "无法更新视频",
     "deleteFailed": "无法删除视频",
-    "queueFailed": "无法将作业加入队列"
+"queueFailed": "无法将作业加入队列"
+  },
+  "lecturer": {
+    "management": "讲师管理",
+    "id": "ID",
+    "code": "讲师代码",
+    "name": "讲师姓名",
+    "type": "讲师类型",
+    "internal": "内部",
+    "external": "外部",
+    "gender": "性别",
+    "male": "男",
+    "female": "女",
+    "phone": "电话",
+    "email": "邮箱",
+    "address": "地址",
+    "add": "添加讲师",
+    "edit": "编辑讲师",
+    "confirmDelete": "确定要删除此讲师吗？",
+    "deleteSuccess": "讲师删除成功",
+    "createSuccess": "讲师创建成功",
+    "updateSuccess": "讲师更新成功",
+    "searchByCode": "按代码搜索",
+    "filterByType": "按类型筛选",
+    "allTypes": "全部类型",
+    "codePlaceholder": "输入讲师代码...",
+    "namePlaceholder": "输入讲师姓名",
+    "addressPlaceholder": "输入地址",
+    "search": "搜索"
   }
 }

@@ -440,7 +440,7 @@ const columns: ColumnsType<Video> = [
         )}
       </Modal>
 
-      {/* Edit Video Modal */}
+{/* Edit Video Modal */}
       <Modal
         title={t("video.editVideo")}
         open={editModalVisible}
@@ -450,22 +450,26 @@ const columns: ColumnsType<Video> = [
         }}
         footer={null}
       >
-        <Form layout="vertical">
-          <Form.Item label={t("video.videoName")}>
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-slate-700 block mb-1">
+              {t("video.videoName")}
+            </label>
             <Input
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
               placeholder={t("video.videoNamePlaceholder")}
             />
-          </Form.Item>
-          <Form.Item
-            label={t("video.thumbnail")}
-            extra={
-              editingVideo?.thumbnailUrl
-                ? t("video.currentThumbnail")
-                : t("video.uploadThumbnail")
-            }
-          >
+          </div>
+          <div>
+            <label className="text-sm font-medium text-slate-700 block mb-1">
+              {t("video.thumbnail")}
+              {editingVideo?.thumbnailUrl && (
+                <span className="text-xs text-slate-500 ml-2">
+                  ({t("video.currentThumbnail")})
+                </span>
+              )}
+            </label>
             <Upload
               maxCount={1}
               beforeUpload={(file) => {
@@ -500,23 +504,21 @@ const columns: ColumnsType<Video> = [
                 {editingThumbnail ? t("video.change") : t("video.selectImage")}
               </Button>
             </Upload>
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" onClick={handleSaveEdit}>
-                {t("common.save")}
-              </Button>
-              <Button
-                onClick={() => {
-                  setEditModalVisible(false);
-                  setEditingThumbnail(null);
-                }}
-              >
-                {t("common.cancel")}
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
+          </div>
+          <Space>
+            <Button type="primary" onClick={handleSaveEdit}>
+              {t("common.save")}
+            </Button>
+            <Button
+              onClick={() => {
+                setEditModalVisible(false);
+                setEditingThumbnail(null);
+              }}
+            >
+              {t("common.cancel")}
+            </Button>
+          </Space>
+        </div>
       </Modal>
     </div>
   );

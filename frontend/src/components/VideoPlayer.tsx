@@ -85,7 +85,7 @@ export default function VideoPlayer({
     }
   }, [initialSeconds, loading]);
 
-  // Track progress periodically (every 10 seconds)
+// Track progress periodically (every 10 seconds)
   useEffect(() => {
     if (!trackProgress || !lessonId || !playing) return;
 
@@ -319,7 +319,7 @@ return (
             percent={progressPercent} 
             showInfo={false}
             strokeColor="#3b82f6"
-            trailColor="rgba(255,255,255,0.3)"
+            railColor="rgba(255,255,255,0.3)"
           />
         </div>
 

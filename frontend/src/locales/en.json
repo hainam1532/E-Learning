@@ -19,7 +19,8 @@
     "cancel": "Cancel",
     "refresh": "Refresh",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "search": "Search"
   },
   "home": {
     "heroTitle": "E-Learning Platform",
@@ -36,7 +37,8 @@
     "duration": "hrs of learning",
     "level": "Level",
     "learnNow": "Learn Now",
-    "students": "students"
+    "students": "students",
+    "noCourses": "No courses to display."
   },
   "login": {
     "welcomeBack": "Welcome Back",
@@ -256,5 +258,33 @@
     "updateFailed": "Failed to update video",
     "deleteFailed": "Failed to delete video",
     "queueFailed": "Failed to queue processing"
+  },
+  "lecturer": {
+    "management": "Lecturer Management",
+    "id": "ID",
+    "code": "Lecturer Code",
+    "name": "Lecturer Name",
+    "type": "Lecturer Type",
+    "internal": "Internal",
+    "external": "External",
+    "gender": "Gender",
+    "male": "Male",
+    "female": "Female",
+    "phone": "Phone",
+    "email": "Email",
+    "address": "Address",
+    "add": "Add Lecturer",
+    "edit": "Edit Lecturer",
+    "confirmDelete": "Are you sure you want to delete this lecturer?",
+    "deleteSuccess": "Lecturer deleted successfully",
+    "createSuccess": "Lecturer created successfully",
+    "updateSuccess": "Lecturer updated successfully",
+    "searchByCode": "Search by code",
+    "filterByType": "Filter by type",
+    "allTypes": "All types",
+    "codePlaceholder": "Enter lecturer code...",
+    "namePlaceholder": "Enter lecturer name",
+    "addressPlaceholder": "Enter address",
+    "search": "Search"
   }
 }

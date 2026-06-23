@@ -95,6 +95,7 @@ export interface Lesson {
   title: string;
   order: number;
   courseId: number;
+  videoId?: number;
   course?: {
     id: number;
     title: string;

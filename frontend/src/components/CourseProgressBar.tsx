@@ -37,12 +37,12 @@ export default function CourseProgressBar({
         </div>
       )}
       
-      <Progress 
+<Progress 
         percent={percent}
         status={isComplete ? 'success' : 'active'}
         showInfo={false}
         strokeColor={isComplete ? '#22c55e' : '#3b82f6'}
-        trailColor="#e2e8f0"
+        railColor="#e2e8f0"
       />
     </div>
   );

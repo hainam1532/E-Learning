@@ -65,7 +65,16 @@ export const getCourseProgress = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    // Get all lessons for this course
+// Get all course videos for this course
+    const courseVideos = await prisma.courseVideo.findMany({
+      where: { courseId },
+      include: {
+        video: true,
+      },
+      orderBy: { order: "asc" },
+    });
+
+    // Get lessons for this course to check progress (lesson links to video)
     const lessons = await prisma.lesson.findMany({
       where: { courseId },
       include: {
@@ -77,7 +86,8 @@ export const getCourseProgress = async (req: Request, res: Response): Promise<vo
       orderBy: { order: "asc" },
     });
 
-    const totalVideos = lessons.length;
+    const totalVideos = courseVideos.length;
+    // Count completed lessons (progress tracked via lessons)
     const completedVideos = lessons.filter(
       (l) => l.progresses.length > 0 && l.progresses[0].completed
     ).length;

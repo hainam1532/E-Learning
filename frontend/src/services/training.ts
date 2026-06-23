@@ -1,0 +1,333 @@
+import api from "./api";
+
+// Types for Training Plan
+export interface Academy {
+  id: number;
+  name_vi?: string;
+  name_en?: string;
+  name_zh?: string;
+  code: string;
+  description?: string;
+  isPublic: boolean;
+}
+
+export interface Lecturer {
+  id: number;
+  code: string;
+  name: string | null;
+  type: 'INTERNAL' | 'EXTERNAL';
+}
+
+export interface TrainingClass {
+  id: number;
+  name_vi?: string;
+  name_en?: string;
+  name_zh?: string;
+  code: string;
+  description_vi?: string;
+  description_en?: string;
+  description_zh?: string;
+  content_vi?: string;
+  content_en?: string;
+  content_zh?: string;
+  objectives_vi?: string;
+  objectives_en?: string;
+  objectives_zh?: string;
+  targetAudience?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  academyId?: number;
+  academy?: Academy;
+  lecturerId?: number;
+  lecturer?: Lecturer;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Student in class
+export interface ClassStudent {
+  id: number;
+  usercode: string;
+  fullName: string | null;
+  email: string | null;
+  departmentId: number | null;
+  department?: {
+    id: number;
+    name_vi: string | null;
+    name_en: string | null;
+    name_zh: string | null;
+    code: string;
+  } | null;
+  positionId: number | null;
+  position?: {
+    id: number;
+    name_vi: string | null;
+    name_en: string | null;
+    name_zh: string | null;
+    code: string;
+  } | null;
+}
+
+// Class report
+export interface ClassReport {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  academy: { id: number; name: string } | null;
+  lecturer: { id: number; code: string; name: string | null } | null;
+  startDate: string | null;
+  endDate: string | null;
+  studentCount: number;
+  students: ClassStudent[];
+}
+
+export type TrainingPlanStatus = 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+export type TrainingResourceType = 'COURSE' | 'EXAM' | 'DOCUMENT';
+
+export interface TrainingResource {
+  id: number;
+  trainingPlanId: number;
+  type: TrainingResourceType;
+  refId: number | null;
+  title_vi?: string;
+  title_en?: string;
+  title_zh?: string;
+  order: number;
+}
+
+export interface TrainingPlan {
+  id: number;
+  title_vi?: string;
+  title_en?: string;
+  title_zh?: string;
+  description_vi?: string;
+  description_en?: string;
+  description_zh?: string;
+  coverImage?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  status: TrainingPlanStatus;
+  academyId?: number | null;
+  trainingClassId?: number | null;
+  academy?: Academy;
+  trainingClass?: TrainingClass;
+  resources?: TrainingResource[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// API Response types
+interface TrainingPlansResponse {
+  success: boolean;
+  data: TrainingPlan[];
+}
+
+interface TrainingPlanResponse {
+  success: boolean;
+  data: TrainingPlan;
+}
+
+interface TrainingClassesResponse {
+  success: boolean;
+  data: TrainingClass[];
+}
+
+interface ClassStudentsResponse {
+  success: boolean;
+  data: ClassStudent[];
+}
+
+interface ClassReportResponse {
+  success: boolean;
+  data: ClassReport;
+}
+
+// Training Class API
+export async function getTrainingClasses(academyId?: number): Promise<TrainingClass[]> {
+  const params = academyId ? { academyId } : {};
+  const response = await api.get<{ success: boolean; data: TrainingClass[] }>("/training/classes", { params });
+  return response.data.data;
+}
+
+export async function createTrainingClass(data: Partial<TrainingClass>): Promise<TrainingClass> {
+  const response = await api.post<{ trainingClass: TrainingClass }>("/training/classes", data);
+  return response.data.trainingClass;
+}
+
+export async function updateTrainingClass(id: number, data: Partial<TrainingClass>): Promise<TrainingClass> {
+  const response = await api.put<{ trainingClass: TrainingClass }>(`/training/classes/${id}`, data);
+  return response.data.trainingClass;
+}
+
+export async function deleteTrainingClass(id: number): Promise<void> {
+  await api.delete(`/training/classes/${id}`);
+}
+
+// Class Student Management API
+export async function getClassStudents(classId: number, search?: string, departmentId?: number): Promise<ClassStudent[]> {
+  const params: Record<string, unknown> = { classId };
+  if (search) params.search = search;
+  if (departmentId) params.departmentId = departmentId;
+  
+  const response = await api.get<ClassStudentsResponse>(`/training/classes/${classId}/students`, { params });
+  return response.data.data;
+}
+
+export async function addStudentToClass(classId: number, userId: number): Promise<{ id: number; usercode: string; fullName: string | null }> {
+  const response = await api.post(`/training/classes/${classId}/students`, { userId });
+  return response.data.student;
+}
+
+export async function removeStudentFromClass(classId: number, userId: number): Promise<void> {
+  await api.delete(`/training/classes/${classId}/students/${userId}`);
+}
+
+export async function importStudentsToClass(classId: number, file: File): Promise<{ success: number; failed: number; errors: string[] }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await api.post<{ message: string; results: { success: number; failed: number; errors: string[] } }>(
+    `/training/classes/${classId}/students/import`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return response.data.results;
+}
+
+export async function generateClassReport(classId: number): Promise<ClassReport> {
+  const response = await api.get<ClassReportResponse>(`/training/classes/${classId}/report`);
+  return response.data.data;
+}
+
+// Training Plan API
+export async function getTrainingPlans(academyId?: number, search?: string): Promise<TrainingPlan[]> {
+  const params: Record<string, unknown> = {};
+  if (academyId) params.academyId = academyId;
+  if (search) params.search = search;
+  
+  const response = await api.get<TrainingPlansResponse>("/training/plans", { params });
+  return response.data.data;
+}
+
+export async function getTrainingPlan(id: number): Promise<TrainingPlan> {
+  const response = await api.get<TrainingPlanResponse>(`/training/plans/${id}`);
+  return response.data.data;
+}
+
+export async function createTrainingPlan(data: Partial<TrainingPlan>): Promise<TrainingPlan> {
+  const response = await api.post<TrainingPlanResponse>("/training/plans", data);
+  return response.data.data;
+}
+
+export async function updateTrainingPlan(id: number, data: Partial<TrainingPlan>): Promise<TrainingPlan> {
+  const response = await api.put<TrainingPlanResponse>(`/training/plans/${id}`, data);
+  return response.data.data;
+}
+
+export async function deleteTrainingPlan(id: number): Promise<void> {
+  await api.delete(`/training/plans/${id}`);
+}
+
+export async function uploadTrainingPlanCover(id: number, file: File): Promise<{ success: boolean; coverImage: string }> {
+  const formData = new FormData();
+  formData.append("cover", file);
+  const response = await api.post<{ success: boolean; data: { coverImage: string } }>(
+    `/training/plans/${id}/cover`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return { success: response.data.success, coverImage: response.data.data.coverImage };
+}
+
+// Training Resource API
+interface TrainingResourceResponse {
+  success: boolean;
+  data: TrainingResource;
+}
+
+// Types for User Training Plan with Progress
+export interface UserTrainingPlan {
+  id: number;
+  title_vi?: string;
+  title_en?: string;
+  title_zh?: string;
+  description_vi?: string;
+  description_en?: string;
+  description_zh?: string;
+  coverImage?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  status: TrainingPlanStatus;
+  academyId?: number | null;
+  trainingClassId?: number | null;
+  academy?: Academy;
+  trainingClass?: TrainingClass;
+  resources?: UserTrainingResource[];
+  totalVideos: number;
+  completedVideos: number;
+  progressPercent: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserTrainingResource {
+  id: number;
+  type: TrainingResourceType;
+  refId: number | null;
+  title_vi?: string;
+  title_en?: string;
+  title_zh?: string;
+  order: number;
+  course?: {
+    id: number;
+    title_vi?: string;
+    title_en?: string;
+    title_zh?: string;
+    coverImage?: string;
+  };
+  totalVideos: number;
+  completedVideos: number;
+  progressPercent: number;
+}
+
+export async function addTrainingResource(
+  planId: number,
+  data: { type: TrainingResourceType; refId: number; title_vi?: string; title_en?: string; title_zh?: string; order?: number }
+): Promise<TrainingResource> {
+  const response = await api.post<TrainingResourceResponse>(`/training/plans/${planId}/resources`, data);
+  return response.data.data;
+}
+
+export async function removeTrainingResource(planId: number, resourceId: number): Promise<void> {
+  await api.delete(`/training/plans/${planId}/resources`, { data: { resourceId } });
+}
+
+// ============ USER TRAINING API (for current user) ============
+
+// Types for User Training Enrollment
+export interface UserTrainingEnrollment {
+  id: number;
+  classId: number;
+  class: TrainingClass;
+  createdAt: string;
+}
+
+// Get current user's training enrollments
+export async function getMyTrainingEnrollments(): Promise<UserTrainingEnrollment[]> {
+  const response = await api.get<{ success: boolean; data: UserTrainingEnrollment[] }>('/training/my-enrollments');
+  return response.data.data;
+}
+
+// Get current user's training plans with progress
+export async function getMyTrainingPlans(): Promise<UserTrainingPlan[]> {
+  const response = await api.get<{ success: boolean; data: UserTrainingPlan[] }>('/training/my-plans');
+  return response.data.data;
+}

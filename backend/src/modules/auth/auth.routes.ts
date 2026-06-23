@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
-import { login, refresh, logout, getProfile, getUsers, getUser, createUser, updateUser, deleteUser, getDepartments, createDepartment, updateDepartment, deleteDepartment, getPositions, createPosition, updatePosition, deletePosition, getConfigs, setConfig, deleteConfig, getAcademies, getAcademy, createAcademy, updateAcademy, deleteAcademy, getAcademyUsers, addAcademyUser, removeAcademyUser, importUsers, exportUserTemplate } from './auth.controller';
+import { login, refresh, logout, getProfile, getUsers, getUser, createUser, updateUser, deleteUser, getDepartments, createDepartment, updateDepartment, deleteDepartment, getPositions, createPosition, updatePosition, deletePosition, getConfigs, setConfig, deleteConfig, getPublicAcademies, getAcademies, getAcademy, createAcademy, updateAcademy, deleteAcademy, getAcademyUsers, addAcademyUser, removeAcademyUser, getLecturers, createLecturer, updateLecturer, deleteLecturer, importUsers, exportUserTemplate } from './auth.controller';
 import { authMiddleware } from '../../middlewares/auth';
 
 const router = Router();
@@ -48,6 +48,9 @@ router.post('/configs', authMiddleware, setConfig);
 router.delete('/configs/:key', authMiddleware, deleteConfig);
 
 // ============ ACADEMY MANAGEMENT ============
+// Public academies (no auth required) - for dropdown
+router.get('/academies/public', getPublicAcademies);
+// Admin only academies
 router.get('/academies', authMiddleware, getAcademies);
 router.get('/academies/:id', authMiddleware, getAcademy);
 router.post('/academies', authMiddleware, createAcademy);
@@ -56,5 +59,11 @@ router.delete('/academies/:id', authMiddleware, deleteAcademy);
 router.get('/academies/:id/users', authMiddleware, getAcademyUsers);
 router.post('/academies/:id/users', authMiddleware, addAcademyUser);
 router.delete('/academies/:id/users/:userId', authMiddleware, removeAcademyUser);
+
+// ============ LECTURER MANAGEMENT ============
+router.get('/lecturers', authMiddleware, getLecturers);
+router.post('/lecturers', authMiddleware, createLecturer);
+router.put('/lecturers/:id', authMiddleware, updateLecturer);
+router.delete('/lecturers/:id', authMiddleware, deleteLecturer);
 
 export default router;

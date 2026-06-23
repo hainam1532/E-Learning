@@ -19,7 +19,8 @@
     "cancel": "Hủy",
     "refresh": "Làm mới",
     "yes": "Có",
-    "no": "Không"
+    "no": "Không",
+    "search": "Tìm kiếm"
   },
   "home": {
     "heroTitle": "Nền Tảng Học Tập",
@@ -36,7 +37,8 @@
     "duration": "giờ học",
     "level": "Cấp độ",
     "learnNow": "Học ngay",
-    "students": "học viên"
+    "students": "học viên",
+    "noCourses": "Không có khóa học nào để hiển thị."
   },
   "login": {
     "welcomeBack": "Chào mừng trở lại",
@@ -256,5 +258,33 @@
     "updateFailed": "Không thể cập nhật video",
     "deleteFailed": "Không thể xóa video",
     "queueFailed": "Không thể thêm vào hàng xử lý"
+  },
+  "lecturer": {
+    "management": "Quản lý Giảng viên",
+    "id": "ID",
+    "code": "Mã giảng viên",
+    "name": "Tên giảng viên",
+    "type": "Loại giảng viên",
+    "internal": "Nội bộ",
+    "external": "Bên ngoài",
+    "gender": "Giới tính",
+    "male": "Nam",
+    "female": "Nữ",
+    "phone": "Số điện thoại",
+    "email": "Email",
+    "address": "Địa chỉ",
+    "add": "Thêm Giảng viên",
+    "edit": "Sửa Giảng viên",
+    "confirmDelete": "Bạn có chắc chắn muốn xóa giảng viên này?",
+    "deleteSuccess": "Xóa giảng viên thành công",
+    "createSuccess": "Tạo giảng viên thành công",
+    "updateSuccess": "Cập nhật giảng viên thành công",
+    "searchByCode": "Tìm theo mã",
+    "filterByType": "Lọc theo loại",
+    "allTypes": "Tất cả loại",
+    "codePlaceholder": "Nhập mã giảng viên...",
+    "namePlaceholder": "Nhập tên giảng viên",
+    "addressPlaceholder": "Nhập địa chỉ",
+    "search": "Tìm kiếm"
   }
 }

@@ -4,6 +4,16 @@ import { prisma } from "./config/db";
 import { processVideo } from "./modules/video/video.processor";
 import { VideoJobData } from "./modules/video/video.queue";
 
+// Suppress pg driver deprecation warning
+process.on('warning', (warning: any) => {
+  if (warning.name === 'DeprecationWarning' && 
+      warning.code === 'DEP0003' &&
+      warning.message.includes('Calling client.query()')) {
+    return;
+  }
+  console.warn(warning);
+});
+
 // Create Redis connection
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 const redisConnection = new IORedis(redisUrl, {

@@ -126,9 +126,28 @@ export const authPost = {
   addUserToAcademy: (academyId: number, userId: number) =>
     api.post(`/auth/academies/${academyId}/users`, { userId }),
 
-  /**
+/**
    * Remove user from academy (Admin)
    */
   removeUserFromAcademy: (academyId: number, userId: number) =>
     api.delete(`/auth/academies/${academyId}/users/${userId}`),
+
+  // ============ LECTURER MANAGEMENT ============
+  /**
+   * Create lecturer (Admin)
+   */
+  createLecturer: (data: { code: string; name?: string; type?: string; gender?: string; phone?: string; email?: string; address?: string }) =>
+    api.post('/auth/lecturers', data),
+
+  /**
+   * Update lecturer (Admin)
+   */
+  updateLecturer: (id: number, data: { code?: string; name?: string; type?: string; gender?: string; phone?: string; email?: string; address?: string }) =>
+    api.put(`/auth/lecturers/${id}`, data),
+
+  /**
+   * Delete lecturer (Admin)
+   */
+  deleteLecturer: (id: number) =>
+    api.delete(`/auth/lecturers/${id}`),
 };

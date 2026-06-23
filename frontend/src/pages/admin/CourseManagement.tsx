@@ -63,12 +63,14 @@ const [loading, setLoading] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   
-  // Custom states for files & videos in Drawer
+// Custom states for files & videos in Drawer
   const [coverFileList, setCoverFileList] = useState<any[]>([]);
   const [attachedVideos, setAttachedVideos] = useState<Video[]>([]);
   const [selectedVideoToAdd, setSelectedVideoToAdd] = useState<number | undefined>(undefined);
   const [activeTab, setActiveTab] = useState("basic");
-  const [formReady, setFormReady] = useState(false);
+
+// Use state for initial values - avoid calling form methods before mount
+  const [initialValues, setInitialValues] = useState<Record<string, any> | undefined>(undefined);
 
   const [form] = Form.useForm();
 
@@ -112,6 +114,16 @@ const handleAdd = () => {
     setAttachedVideos([]);
     setSelectedVideoToAdd(undefined);
     setActiveTab("basic");
+    setInitialValues({
+      isPublic: true,
+      rating: 5,
+      language: "vi",
+      antiFastForward: false,
+      lockSpeed1x: false,
+      showWatermark: false,
+      blockDownload: false,
+      requireFullCompletion: false,
+    });
     setDrawerVisible(true);
   };
 
@@ -130,7 +142,7 @@ const handleEdit = (record: Course) => {
         : []
     );
 
-    // Map course videos to our local Video model list
+// Map course videos to our local Video model list
     const sortedVideos = record.courseVideos
       ? [...record.courseVideos]
           .sort((a, b) => a.order - b.order)
@@ -141,85 +153,50 @@ const handleEdit = (record: Course) => {
     setSelectedVideoToAdd(undefined);
     setActiveTab("basic");
 
+    // Set initial values for editing
+    let parsedBenefits = record.benefits;
+    if (typeof parsedBenefits === "string") {
+      try {
+        parsedBenefits = JSON.parse(parsedBenefits);
+      } catch {
+        parsedBenefits = [];
+      }
+    }
+    
+    let parsedTags = record.tags;
+    if (typeof parsedTags === "string") {
+      try {
+        parsedTags = JSON.parse(parsedTags);
+      } catch {
+        parsedTags = [];
+      }
+    }
+
+    setInitialValues({
+      title_vi: record.title_vi,
+      title_en: record.title_en,
+      title_zh: record.title_zh,
+      description_vi: record.description_vi,
+      description_en: record.description_en,
+      description_zh: record.description_zh,
+      isPublic: record.isPublic,
+      rating: record.rating,
+      language: record.language || "vi",
+      targetAudience: record.targetAudience,
+      benefits: parsedBenefits || [],
+      tags: parsedTags || [],
+      academyId: record.academyId,
+      categoryId: record.categoryId,
+      instructorId: record.instructorId,
+      antiFastForward: record.rule?.antiFastForward || false,
+      lockSpeed1x: record.rule?.lockSpeed1x || false,
+      showWatermark: record.rule?.showWatermark || false,
+      blockDownload: record.rule?.blockDownload || false,
+      requireFullCompletion: record.rule?.requireFullCompletion || false,
+    });
+
     setDrawerVisible(true);
   };
-
-// Initialize form values when drawer opens
-  useEffect(() => {
-    if (drawerVisible) {
-      // Use setTimeout to ensure Form component is mounted before setting values
-      // This prevents the warning "Instance created by useForm is not connected to any Form element"
-      setFormReady(false);
-      const timer = setTimeout(() => {
-        try {
-          if (editingCourse) {
-            // Parse benefits and tags safely
-            let parsedBenefits = editingCourse.benefits;
-            if (typeof parsedBenefits === "string") {
-              try {
-                parsedBenefits = JSON.parse(parsedBenefits);
-              } catch {
-                parsedBenefits = [];
-              }
-            }
-            
-            let parsedTags = editingCourse.tags;
-            if (typeof parsedTags === "string") {
-              try {
-                parsedTags = JSON.parse(parsedTags);
-              } catch {
-                parsedTags = [];
-              }
-            }
-
-            form.setFieldsValue({
-              title_vi: editingCourse.title_vi,
-              title_en: editingCourse.title_en,
-              title_zh: editingCourse.title_zh,
-              description_vi: editingCourse.description_vi,
-              description_en: editingCourse.description_en,
-              description_zh: editingCourse.description_zh,
-              isPublic: editingCourse.isPublic,
-              rating: editingCourse.rating,
-              language: editingCourse.language || "vi",
-              targetAudience: editingCourse.targetAudience,
-              benefits: parsedBenefits || [],
-              tags: parsedTags || [],
-              academyId: editingCourse.academyId,
-              categoryId: editingCourse.categoryId,
-              instructorId: editingCourse.instructorId,
-              antiFastForward: editingCourse.rule?.antiFastForward || false,
-              lockSpeed1x: editingCourse.rule?.lockSpeed1x || false,
-              showWatermark: editingCourse.rule?.showWatermark || false,
-              blockDownload: editingCourse.rule?.blockDownload || false,
-              requireFullCompletion: editingCourse.rule?.requireFullCompletion || false,
-            });
-          } else {
-            // Reset to default values for new course
-            form.resetFields();
-            form.setFieldsValue({
-              isPublic: true,
-              rating: 5,
-              language: "vi",
-              antiFastForward: false,
-              lockSpeed1x: false,
-              showWatermark: false,
-              blockDownload: false,
-              requireFullCompletion: false,
-            });
-          }
-          setFormReady(true);
-        } catch (error) {
-          // Silently handle - form may not be mounted yet
-          console.debug("Form not ready, skipping field initialization");
-        }
-      }, 100);
-
-      return () => clearTimeout(timer);
-    } else {
-      setFormReady(false);
-    }
-  }, [drawerVisible, editingCourse]);
 
   const handleDelete = async (id: number) => {
     try {
@@ -484,7 +461,7 @@ const handleEdit = (record: Course) => {
         size="large"
         onClose={() => setDrawerVisible(false)}
         open={drawerVisible}
-        destroyOnClose
+        destroyOnClose={false}
         extra={
           <Space>
             <Button onClick={() => setDrawerVisible(false)}>Hủy</Button>
@@ -499,7 +476,7 @@ const handleEdit = (record: Course) => {
           </Space>
         }
       >
-        <Form form={form} layout="vertical">
+<Form form={form} layout="vertical" initialValues={initialValues}>
           <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}
@@ -572,11 +549,10 @@ const handleEdit = (record: Course) => {
                       >
                         <Switch />
                       </Form.Item>
-                      <div className="text-sm text-slate-500 -mt-3 mb-4">
-                        {formReady ? form.getFieldValue("isPublic") ?? true
+<div className="text-sm text-slate-500 -mt-3 mb-4">
+                        {initialValues?.isPublic 
                           ? "Công khai (Hiển thị trang chủ học viện)"
-                          : "Không công khai"
-                          : "Công khai (Hiển thị trang chủ học viện)"}
+                          : "Không công khai"}
                       </div>
                     </div>
 
@@ -856,7 +832,7 @@ const handleEdit = (record: Course) => {
                     </div>
 
 {/* Video Rule Settings */}
-                    <Form.Item name="antiFastForward" valuePropName="checked" className="mb-3">
+<Form.Item name="antiFastForward" valuePropName="checked" className="mb-3">
                       <div className="flex items-start justify-between bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
                         <div className="pr-4">
                           <span className="font-semibold text-slate-800 block">
@@ -866,10 +842,7 @@ const handleEdit = (record: Course) => {
                             Khi bật, học viên không thể tua vượt quá mốc thời gian đã xem trong video.
                           </Text>
                         </div>
-                        <Switch 
-                          checked={form.getFieldValue('antiFastForward')}
-                          onChange={(checked) => form.setFieldsValue({ antiFastForward: checked })} 
-                        />
+                        <Switch />
                       </div>
                     </Form.Item>
 
@@ -883,10 +856,7 @@ const handleEdit = (record: Course) => {
                             Khóa tốc độ xem video ở mức 1x, không cho phép học viên tăng tốc độ phát (ví dụ 1.5x, 2x).
                           </Text>
                         </div>
-                        <Switch 
-                          checked={form.getFieldValue('lockSpeed1x')}
-                          onChange={(checked) => form.setFieldsValue({ lockSpeed1x: checked })} 
-                        />
+                        <Switch />
                       </div>
                     </Form.Item>
 
@@ -900,10 +870,7 @@ const handleEdit = (record: Course) => {
                             Hiển thị mã học viên (Usercode) mờ chạy ngẫu nhiên trên màn hình phát video.
                           </Text>
                         </div>
-                        <Switch 
-                          checked={form.getFieldValue('showWatermark')}
-                          onChange={(checked) => form.setFieldsValue({ showWatermark: checked })} 
-                        />
+                        <Switch />
                       </div>
                     </Form.Item>
 
@@ -917,10 +884,7 @@ const handleEdit = (record: Course) => {
                             Chặn các thao tác click chuột phải, ẩn nút tải xuống mặc định của trình duyệt để bảo vệ bản quyền.
                           </Text>
                         </div>
-                        <Switch 
-                          checked={form.getFieldValue('blockDownload')}
-                          onChange={(checked) => form.setFieldsValue({ blockDownload: checked })} 
-                        />
+                        <Switch />
                       </div>
                     </Form.Item>
 
@@ -936,7 +900,7 @@ const handleEdit = (record: Course) => {
                     </div>
 
 {/* requireFullCompletion */}
-                    <Form.Item name="requireFullCompletion" valuePropName="checked">
+<Form.Item name="requireFullCompletion" valuePropName="checked">
                       <div className="flex items-start justify-between bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
                         <div className="pr-4">
                           <span className="font-semibold text-slate-800 block">
@@ -946,10 +910,7 @@ const handleEdit = (record: Course) => {
                             Khi bật, học viên phải xem toàn bộ tất cả video (không bỏ sót giây nào) mới được ghi nhận hoàn thành khóa học.
                           </Text>
                         </div>
-                        <Switch 
-                          checked={form.getFieldValue('requireFullCompletion')}
-                          onChange={(checked) => form.setFieldsValue({ requireFullCompletion: checked })} 
-                        />
+                        <Switch />
                       </div>
                     </Form.Item>
                   </div>

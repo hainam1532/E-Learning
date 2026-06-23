@@ -8,7 +8,6 @@ import {
   Row, 
   Col, 
   Spin, 
-  List, 
   Avatar,
   Tag,
   Divider,
@@ -52,7 +51,7 @@ const [loading, setLoading] = useState(true);
     return !!course?.academyId;
   }, [course?.academyId]);
   
-  // Track progress only for academy courses
+// Track progress only for academy courses
   const trackProgress = isAcademyCourse && isAuthenticated;
 
   // Parse course ID
@@ -123,12 +122,15 @@ const [loading, setLoading] = useState(true);
     return videoList.find(v => v.videoId === currentVideoId) || null;
   }, [currentVideoId, videoList]);
 
-  // Get lesson for current video
+// Get lesson for current video
   const currentLesson = useMemo(() => {
-    if (!course?.lessons || !currentCourseVideo) return null;
-    // Find lesson by matching videoId in the lesson or use order
+    if (!currentCourseVideo) return null;
+    // Find lesson directly matching videoId in the course lessons
+    const lesson = course?.lessons?.find(l => l.videoId === currentCourseVideo.videoId);
+    if (lesson) return lesson;
+    // Fallback: try to find by index position
     const videoIndex = videoList.findIndex(v => v.videoId === currentCourseVideo.videoId);
-    if (videoIndex >= 0 && course.lessons[videoIndex]) {
+    if (videoIndex >= 0 && course?.lessons?.[videoIndex]) {
       return course.lessons[videoIndex];
     }
     return null;
@@ -305,18 +307,18 @@ return (
             <PlayCircleOutlined /> Danh sách video
           </Title>
           
-          {videoList.length === 0 ? (
+{videoList.length === 0 ? (
             <Text type="secondary">No videos available</Text>
           ) : (
-            <List
-              dataSource={videoList}
-renderItem={(item, index) => {
+            <div className="flex flex-col gap-1">
+              {videoList.map((item, index) => {
                 const isActive = item.videoId === currentVideoId;
                 const isCompleted = trackProgress && courseProgress?.completedVideos > index;
                 const isPlaying = isActive && isVideoPlaying;
                 
                 return (
-                  <List.Item
+                  <div
+                    key={item.videoId}
                     className={`cursor-pointer hover:bg-slate-50 rounded-lg p-2 transition-colors ${
                       isActive ? 'bg-blue-50 border border-blue-200' : ''
                     }`}
@@ -326,7 +328,7 @@ renderItem={(item, index) => {
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0">
                         {isCompleted ? (
                           <CheckCircleOutlined className="text-green-500 text-lg" />
-) : isPlaying ? (
+                        ) : isPlaying ? (
                           <PlayCircleOutlined className="text-lg video-playing-indicator" style={{ color: '#ef4444' }} />
                         ) : isActive ? (
                           <PlayCircleOutlined className="text-blue-500 text-lg" />
@@ -349,10 +351,10 @@ renderItem={(item, index) => {
                         )}
                       </div>
                     </div>
-                  </List.Item>
+                  </div>
                 );
-              }}
-            />
+              })}
+            </div>
           )}
         </div>
       </div>

@@ -22,10 +22,14 @@ import {
   TrophyOutlined,
   CheckCircleOutlined,
   PlayCircleOutlined,
-  CrownOutlined
+  CrownOutlined,
+  CalendarOutlined,
+  ReadOutlined
 } from '@ant-design/icons';
 import { getCourses } from '../../services/course';
+import { getMyTrainingPlans } from '../../services/training';
 import type { Course } from '../../services/course';
+import type { UserTrainingPlan } from '../../services/training';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -51,6 +55,8 @@ export default function Profile() {
   const [activeTab, setActiveTab] = useState('training');
   const [courses, setCourses] = useState<Course[]>([]);
   const [favoriteCourses, setFavoriteCourses] = useState<Course[]>([]);
+  const [trainingPlans, setTrainingPlans] = useState<UserTrainingPlan[]>([]);
+  const [loadingTrainingPlans, setLoadingTrainingPlans] = useState(false);
   
   const [stats] = useState<LearningStats>({
     monthlyDuration: 420,
@@ -77,6 +83,22 @@ export default function Profile() {
       }
     };
     fetchCourses();
+  }, []);
+
+  useEffect(() => {
+    const fetchTrainingPlans = async () => {
+      try {
+        setLoadingTrainingPlans(true);
+        const data = await getMyTrainingPlans();
+        setTrainingPlans(data);
+      } catch (error) {
+        console.error('Failed to fetch training plans:', error);
+        setTrainingPlans([]);
+      } finally {
+        setLoadingTrainingPlans(false);
+      }
+    };
+    fetchTrainingPlans();
   }, []);
 
   const menuItems = [
@@ -191,45 +213,120 @@ export default function Profile() {
 
           {/* Tab Content */}
           <div className="bg-white rounded-lg border border-slate-200 p-4">
-            {/* Training Tab */}
+{/* Training Tab - Shows Training Plans with Progress */}
             {activeTab === 'training' && (
               <div>
-                <Title level={5} className="!mb-4">Khóa học của tôi</Title>
-                {courses.length > 0 ? (
-                  <Row gutter={[16, 16]}>
-                    {courses.map((course) => (
-                      <Col xs={24} sm={12} md={8} key={course.id}>
-                        <div 
-                          className="rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                          onClick={() => navigate(`/?course=${course.id}`)}
-                        >
-                          <div className="relative h-32">
-                            <img 
-                              alt={course.title_vi} 
-                              src={course.coverImage || 'https://via.placeholder.com/300x150'} 
-                              className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                              <PlayCircleOutlined className="text-white text-3xl" />
-                            </div>
+                <Title level={5} className="!mb-4">Kế hoạch đào tạo của tôi</Title>
+                {loadingTrainingPlans ? (
+                  <div className="text-center py-12">
+                    <Progress type="circle" percent={0} />
+                  </div>
+                ) : trainingPlans.length > 0 ? (
+                  <div className="space-y-4">
+                    {trainingPlans.map((plan) => (
+                      <div 
+                        key={plan.id}
+                        className="rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => {
+                          // Navigate to the first course in the plan
+                          const firstCourseResource = plan.resources?.find(r => r.type === 'COURSE' && r.refId);
+                          if (firstCourseResource?.refId) {
+                            navigate(`/learn/${firstCourseResource.refId}`);
+                          }
+                        }}
+                      >
+                        <div className="flex flex-col md:flex-row">
+{/* Cover Image - Priority: plan.coverImage -> resource.course?.coverImage -> placeholder */}
+                          <div className="w-full md:w-48 h-32 flex-shrink-0">
+                            {(() => {
+                              // Get image from first course resource if exists
+                              const firstCourseResource = plan.resources?.find(r => r.type === 'COURSE' && r.course?.coverImage);
+                              const imgSrc = plan.coverImage || firstCourseResource?.course?.coverImage;
+                              return (
+                                <img 
+                                  alt={plan.title_vi} 
+                                  src={imgSrc || `https://via.placeholder.com/300x150?text=${encodeURIComponent(plan.trainingClass?.name_vi || 'Training')}`} 
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    // Fallback when image fails to load
+                                    e.currentTarget.src = `https://via.placeholder.com/300x150?text=${encodeURIComponent(plan.trainingClass?.name_vi || 'Training')}`;
+                                  }}
+                                />
+                              );
+                            })()}
                           </div>
-                          <div className="p-3">
-                            <Paragraph ellipsis={{ rows: 2 }} className="!mb-2 text-sm font-medium">
-                              {course.title_vi}
-                            </Paragraph>
-                            <div className="flex items-center justify-between">
-                              <Rate disabled value={course.rating} className="text-xs" /> 
-                              <Text type="secondary" className="text-xs">{course.rating}</Text>
+                          
+                          {/* Plan Info */}
+                          <div className="flex-1 p-4">
+                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+                              <div className="flex-1">
+                                <Paragraph ellipsis={{ rows: 2 }} className="!mb-2 text-base font-medium">
+                                  {plan.title_vi || 'Kế hoạch đào tạo'}
+                                </Paragraph>
+                                <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                                  {plan.trainingClass && (
+                                    <Tag icon={<BookOutlined />} color="blue">
+                                      {plan.trainingClass.name_vi || plan.trainingClass.name_en || plan.trainingClass.code}
+                                    </Tag>
+                                  )}
+                                  {plan.academy && (
+                                    <Tag icon={<CalendarOutlined />} color="purple">
+                                      {plan.academy.name_vi || plan.academy.name_en || plan.academy.code}
+                                    </Tag>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* Progress */}
+                              <div className="flex flex-col items-end">
+                                <div className="text-lg font-semibold text-blue-600">
+                                  {plan.progressPercent}%
+                                </div>
+                                <Text type="secondary" className="text-xs">
+                                  {plan.completedVideos}/{plan.totalVideos} video
+                                </Text>
+                              </div>
                             </div>
+                            
+{/* Progress Bar */}
+                            <Progress 
+                              percent={plan.progressPercent} 
+                              size="small" 
+                              className="!mt-3"
+                              strokeColor={plan.progressPercent === 100 ? '#22c55e' : '#1890ff'}
+                            />
+                            
+                            {/* Resources/Courses in this plan */}
+                            {plan.resources && plan.resources.length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-slate-100">
+                                <Text type="secondary" className="text-xs block !mb-2">Nội dung khóa học:</Text>
+                                <div className="flex flex-wrap gap-2">
+                                  {plan.resources.slice(0, 3).map((resource, idx) => (
+                                    <Tag 
+                                      key={resource.id} 
+                                      icon={<ReadOutlined />}
+                                      color={resource.progressPercent === 100 ? 'success' : resource.progressPercent > 0 ? 'processing' : 'default'}
+                                    >
+                                      {resource.course?.title_vi || resource.title_vi || `Khóa ${idx + 1}`}
+                                      {resource.progressPercent > 0 && ` (${resource.progressPercent}%)`}
+                                    </Tag>
+                                  ))}
+                                  {plan.resources.length > 3 && (
+                                    <Tag>+{plan.resources.length - 3} khác</Tag>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </Col>
+                      </div>
                     ))}
-                  </Row>
+                  </div>
                 ) : (
                   <div className="text-center py-12 text-slate-400">
                     <BookOutlined className="text-4xl mb-2" />
-                    <p>Chưa có khóa học nào</p>
+                    <p>Chưa có kế hoạch đào tạo nào</p>
+                    <Text type="secondary" className="text-sm">Vui lòng liên hệ quản trị viên để được thêm vào lớp học</Text>
                   </div>
                 )}
               </div>

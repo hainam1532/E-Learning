@@ -884,7 +884,21 @@ export const deleteConfig = async (req: Request, res: Response) => {
 
 // ============ ACADEMY MANAGEMENT ============
 
-// Get all academies
+// Get public academies (no auth required) - for public dropdown
+export const getPublicAcademies = async (req: Request, res: Response) => {
+  try {
+    const academies = await prisma.academy.findMany({
+      where: { isPublic: true },
+      orderBy: { id: 'asc' },
+    });
+
+    res.status(200).json({ academies });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Get all academies (admin only)
 export const getAcademies = async (req: Request, res: Response) => {
   try {
     if (!req.user || req.user.role !== 'ADMIN') {
@@ -1148,6 +1162,187 @@ export const removeAcademyUser = async (req: Request, res: Response) => {
     });
 
     res.status(200).json({ message: 'User removed from academy' });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// ============ LECTURER MANAGEMENT ============
+
+// Get all lecturers
+export const getLecturers = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const { search, type } = req.query;
+    
+    // Build filter conditions
+    const where: any = {};
+    
+    // Filter by type (INTERNAL or EXTERNAL)
+    if (type && (type === 'INTERNAL' || type === 'EXTERNAL')) {
+      where.type = type;
+    }
+    
+    // Search by code (contains)
+    if (search) {
+      where.code = { contains: String(search), mode: 'insensitive' };
+    }
+
+    const lecturers = await prisma.lecturer.findMany({
+      where,
+      orderBy: { code: 'asc' },
+    });
+
+    res.status(200).json({ lecturers });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Create lecturer
+export const createLecturer = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const code = getBodyString(req.body.code);
+    const name = getBodyString(req.body.name);
+    const type = getBodyString(req.body.type) || 'INTERNAL';
+    const gender = getBodyString(req.body.gender) || 'MALE';
+    const phone = getBodyString(req.body.phone);
+    const email = getBodyString(req.body.email);
+    const address = getBodyString(req.body.address);
+
+    if (!code) {
+      res.status(400).json({ message: 'Lecturer code is required' });
+      return;
+    }
+
+    // Check duplicate code
+    const existing = await prisma.lecturer.findUnique({ where: { code } });
+    if (existing) {
+      res.status(400).json({ message: 'Lecturer code already exists' });
+      return;
+    }
+
+    // Validate EXTERNAL requires email and address
+    if (type === 'EXTERNAL' && !email) {
+      res.status(400).json({ message: 'Email is required for external lecturers' });
+      return;
+    }
+
+    const lecturer = await prisma.lecturer.create({
+      data: {
+        code,
+        name,
+        type: type as 'INTERNAL' | 'EXTERNAL',
+        gender: gender as 'MALE' | 'FEMALE',
+        phone,
+        email: type === 'EXTERNAL' ? email : null,
+        address: type === 'EXTERNAL' ? address : null,
+      },
+    });
+
+    res.status(201).json({ message: 'Lecturer created successfully', lecturer });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Update lecturer
+export const updateLecturer = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const id = parseInt(safeParamString(req.params.id));
+    if (isNaN(id)) {
+      res.status(400).json({ message: req.t('INVALID_ID') });
+      return;
+    }
+
+    const name = getBodyString(req.body.name);
+    const type = getBodyString(req.body.type);
+    const gender = getBodyString(req.body.gender);
+    const phone = getBodyString(req.body.phone);
+    const email = getBodyString(req.body.email);
+    const address = getBodyString(req.body.address);
+
+    // Check if lecturer exists
+    const existing = await prisma.lecturer.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ message: 'Lecturer not found' });
+      return;
+    }
+
+    // Check duplicate code (if changed)
+    const code = getBodyString(req.body.code);
+    if (code && code !== existing.code) {
+      const duplicate = await prisma.lecturer.findUnique({ where: { code } });
+      if (duplicate) {
+        res.status(400).json({ message: 'Lecturer code already exists' });
+        return;
+      }
+    }
+
+    // Validate EXTERNAL requires email
+    const finalType = type || existing.type;
+    if (finalType === 'EXTERNAL' && !email && !existing.email) {
+      res.status(400).json({ message: 'Email is required for external lecturers' });
+      return;
+    }
+
+    const lecturer = await prisma.lecturer.update({
+      where: { id },
+      data: {
+        code: code || existing.code,
+        name: name !== undefined ? name : existing.name,
+        type: type ? (type as 'INTERNAL' | 'EXTERNAL') : undefined,
+        gender: gender ? (gender as 'MALE' | 'FEMALE') : undefined,
+        phone: phone !== undefined ? phone : existing.phone,
+        email: finalType === 'EXTERNAL' ? (email || existing.email) : null,
+        address: finalType === 'EXTERNAL' ? (address || existing.address) : null,
+      },
+    });
+
+    res.status(200).json({ message: 'Lecturer updated successfully', lecturer });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Delete lecturer
+export const deleteLecturer = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const id = parseInt(safeParamString(req.params.id));
+    if (isNaN(id)) {
+      res.status(400).json({ message: req.t('INVALID_ID') });
+      return;
+    }
+
+    // Check if lecturer exists
+    const existing = await prisma.lecturer.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ message: 'Lecturer not found' });
+      return;
+    }
+
+    await prisma.lecturer.delete({ where: { id } });
+
+    res.status(200).json({ message: 'Lecturer deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
   }

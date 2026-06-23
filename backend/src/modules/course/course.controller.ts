@@ -596,20 +596,54 @@ export const addVideoToCourse = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    // Check if video exists
+    const video = await prisma.video.findUnique({
+      where: { id: videoId },
+    });
+
+    if (!video) {
+      res.status(404).json({
+        success: false,
+        message: "Video not found",
+      });
+      return;
+    }
+
+    // Get max order for course videos to auto-increment
+    const lastCourseVideo = await prisma.courseVideo.findFirst({
+      where: { courseId },
+      orderBy: { order: "desc" },
+    });
+    const newOrder = order ?? (lastCourseVideo ? lastCourseVideo.order + 1 : 0);
+
     const courseVideo = await prisma.courseVideo.create({
       data: {
         courseId,
         videoId,
-        order: order || 0,
+        order: newOrder,
       },
       include: {
         video: true,
       },
     });
 
+    // Auto-create a Lesson record for progress tracking
+    const lessonTitle = video.name || `Video ${newOrder + 1}`;
+    const lesson = await prisma.lesson.create({
+      data: {
+        title: lessonTitle,
+        order: newOrder,
+        courseId,
+        videoId: videoId,
+      },
+    });
+
     res.status(201).json({
       success: true,
-      data: courseVideo,
+      data: {
+        ...courseVideo,
+        lessonId: lesson.id,
+      },
     });
   } catch (error) {
     console.error("Add video to course error:", error);

@@ -16,6 +16,10 @@ import SystemConfig from "../pages/admin/SystemConfig";
 import VideoLibrary from "../pages/admin/VideoLibrary";
 import AcademyManagement from "../pages/admin/AcademyManagement";
 import CourseManagement from "../pages/admin/CourseManagement";
+import TrainingPlanManagement from "../pages/admin/TrainingPlanManagement";
+import TrainingClassManagement from "../pages/admin/TrainingClassManagement";
+import LecturerManagement from "../pages/admin/LecturerManagement";
+
 
 // Placeholder components for new menu items
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -31,30 +35,43 @@ export const router = createBrowserRouter([
     path: "/",
     element: <UserLayout />,
     children: [
-{
+      {
         path: "",
         element: <Home />,
       },
+      // Profile - Yêu cầu đăng nhập
       {
         path: "profile",
-        element: <Profile />,
+        element: (
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "login",
         element: <Login />,
       },
-{
+      {
         path: "unauthorized",
         element: <Unauthorized />,
       },
-      // Course Learning Page
+      // Course Learning Page - Yêu cầu đăng nhập
       {
         path: "learn/:courseId",
-        element: <CourseLearn />,
+        element: (
+          <ProtectedRoute>
+            <CourseLearn />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "learn/:courseId/:videoId",
-        element: <CourseLearn />,
+        element: (
+          <ProtectedRoute>
+            <CourseLearn />
+          </ProtectedRoute>
+        ),
       },
     ],
   },
@@ -133,15 +150,15 @@ export const router = createBrowserRouter([
           },
           {
             path: "training/plans",
-            element: <PlaceholderPage title="Kế hoạch đào tạo" />,
+            element: <TrainingPlanManagement />,
           },
           {
             path: "training/classes",
-            element: <PlaceholderPage title="Quản lý lớp học" />,
+            element: <TrainingClassManagement />,
           },
-          {
+{
             path: "training/instructors",
-            element: <PlaceholderPage title="Quản lý giảng viên" />,
+            element: <LecturerManagement />,
           },
           // Quản lý kỳ thi
           {
