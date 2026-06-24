@@ -34,6 +34,7 @@ refreshTokens    RefreshToken[]
   enrollments    Enrollment[]
   academyEnrollments AcademyEnrollment[]
   classEnrollments ClassEnrollment[]
+  videoLikes     VideoLike[]
 
   createdAt DateTime @default(now())
 
@@ -221,7 +222,8 @@ model Lesson {
   course    Course  @relation(fields: [courseId], references: [id])
 
   videoId   Int?
-  video    Video?  @relation(fields: [videoId], references: [id])
+  video    Video?  @relation("LessonOwnsVideo", fields: [videoId], references: [id])
+  videoForLesson Video? @relation("VideoOwnsLesson")
   progresses LearningProgress[]
 
   @@map("lessons")
@@ -237,7 +239,8 @@ model Video {
   id        Int    @id @default(autoincrement())
 
   lessonId  Int?   @unique
-  lesson    Lesson? @relation(fields: [lessonId], references: [id])
+  lesson    Lesson? @relation("VideoOwnsLesson", fields: [lessonId], references: [id])
+  ownedByLessons Lesson[] @relation("LessonOwnsVideo")
 
   bucket    String
   path      String   // Original video source path (e.g., uploads/uuid.mp4)
@@ -252,8 +255,25 @@ model Video {
 
   // Khóa học có video này
   courseVideos CourseVideo[]
+  likes        VideoLike[]
 
   @@map("videos")
+}
+
+// Like video của người dùng
+model VideoLike {
+  id        Int   @id @default(autoincrement())
+
+  userId    Int
+  videoId   Int
+
+  user      User  @relation(fields: [userId], references: [id])
+  video     Video @relation(fields: [videoId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, videoId])
+  @@map("video_likes")
 }
 
 model Enrollment {

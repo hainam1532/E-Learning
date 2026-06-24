@@ -254,6 +254,7 @@ interface TrainingResourceResponse {
 }
 
 // Types for User Training Plan with Progress
+// Note: startDate and endDate are included from the backend response
 export interface UserTrainingPlan {
   id: number;
   title_vi?: string;
@@ -263,8 +264,8 @@ export interface UserTrainingPlan {
   description_en?: string;
   description_zh?: string;
   coverImage?: string;
-  startDate?: string | null;
-  endDate?: string | null;
+  startDate?: string | null;  // Start date of the training plan
+  endDate?: string | null;   // End date of the training plan - if passed, status becomes COMPLETED
   status: TrainingPlanStatus;
   academyId?: number | null;
   trainingClassId?: number | null;
@@ -277,6 +278,94 @@ export interface UserTrainingPlan {
   createdAt: string;
   updatedAt: string;
 }
+
+// ============ Helper Functions for Training Plans ============
+// These functions work with nullable date values (string | null | undefined)
+
+// Helper function to check if training plan is expired based on endDate
+// Returns true if endDate exists AND status is ACTIVE AND endDate is before today
+export const isTrainingPlanExpired = (endDate: string | null | undefined, status: string): boolean => {
+  if (!endDate || status !== 'ACTIVE') return false;
+  
+  const end = new Date(endDate);
+  const now = new Date();
+  
+  // Reset time to midnight for accurate date comparison
+  const endDateMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  return endDateMidnight < nowDate;
+};
+
+// Format date range for display
+export const formatDateRange = (startDate: string | null | undefined, endDate: string | null | undefined): string => {
+  if (!startDate && !endDate) return '';
+  
+  const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('vi-VN');
+  
+  if (startDate && endDate) {
+    return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+  } else if (startDate) {
+    return `Từ ${formatDate(startDate)}`;
+  } else {
+    return `Đến ${formatDate(endDate!)}`;
+  }
+};
+
+// Get display status text and color for training plan
+export const getStatusDisplayText = (
+  endDate: string | null | undefined,
+  status: string
+): { text: string; color: string } => {
+  if (status === 'COMPLETED') {
+    return { text: 'Hoàn thành', color: 'green' };
+  }
+  if (status === 'CANCELLED') {
+    return { text: 'Đã hủy', color: 'red' };
+  }
+  if (status === 'DRAFT') {
+    return { text: 'Nháp', color: 'gold' };
+  }
+  
+  // For ACTIVE status, check if expired
+  if (endDate) {
+    const end = new Date(endDate);
+    const now = new Date();
+    if (end < now) {
+      return { text: 'Hết hạn', color: 'red' };
+    }
+  }
+  
+  return { text: 'Hoạt động', color: 'green' };
+};
+
+// Helper function to get display status - accepts proper nullable types
+export const getTrainingPlanDisplayStatus = (
+  status: TrainingPlanStatus,
+  endDate: string | null | undefined
+): { text: string; color: string } => {
+  // If endDate passed and status is ACTIVE, check if expired
+  if (status === 'ACTIVE' && endDate) {
+    const end = new Date(endDate);
+    const now = new Date();
+    if (end < now) {
+      return { text: 'Hết hạn', color: 'red' };
+    }
+  }
+  
+  switch (status) {
+    case 'DRAFT':
+      return { text: 'Nháp', color: 'gold' };
+    case 'ACTIVE':
+      return { text: 'Hoạt động', color: 'green' };
+    case 'COMPLETED':
+      return { text: 'Hoàn thành', color: 'blue' };
+    case 'CANCELLED':
+      return { text: 'Đã hủy', color: 'red' };
+    default:
+      return { text: status, color: 'default' };
+  }
+};
 
 export interface UserTrainingResource {
   id: number;

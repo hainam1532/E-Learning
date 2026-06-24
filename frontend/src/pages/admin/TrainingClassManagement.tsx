@@ -52,6 +52,23 @@ import {
 import { getAcademies, getCourses, type Academy, type Course } from '../../services/course';
 import { authGet } from '../../services/auth/auth.get';
 
+// Helper function to check if training class is expired
+const isClassExpired = (endDate: string | null | undefined): boolean => {
+  if (!endDate) return false;
+  const end = dayjs(endDate);
+  const now = dayjs();
+  return end.isBefore(now, 'day');
+};
+
+// Helper function to get class status display
+const getClassStatusDisplay = (endDate: string | null | undefined): { text: string; color: string } => {
+  const isExpired = isClassExpired(endDate);
+  if (isExpired) {
+    return { text: 'Hết hạn', color: 'red' };
+  }
+  return { text: 'Hoạt động', color: 'green' };
+};
+
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
@@ -398,7 +415,7 @@ export default function TrainingClassManagement() {
           '-'
         ),
     },
-    {
+{
       title: 'Thời gian',
       key: 'dates',
       render: (_: any, record: TrainingClass) => {
@@ -409,6 +426,15 @@ export default function TrainingClassManagement() {
             <span>Kết thúc: {dayjs(record.endDate).format('DD/MM/YYYY')}</span>
           </div>
         );
+      },
+    },
+    {
+      title: 'Trạng thái',
+      key: 'status',
+      width: 100,
+      render: (_: any, record: TrainingClass) => {
+        const status = getClassStatusDisplay(record.endDate);
+        return <Tag color={status.color as any}>{status.text}</Tag>;
       },
     },
     {
@@ -762,11 +788,12 @@ export default function TrainingClassManagement() {
                         }))}
                       />
                     </div>
-                    <Button
+<Button
                       type="primary"
                       icon={<PlusOutlined />}
                       onClick={() => setAddStudentModalOpen(true)}
                       className="bg-blue-600 hover:bg-blue-700"
+                      disabled={editingClass && isClassExpired(editingClass.endDate)}
                     >
                       Thêm học sinh
                     </Button>
@@ -779,6 +806,7 @@ export default function TrainingClassManagement() {
                         setImportModalOpen(true);
                       }}
                       className="hover:border-green-600 hover:text-green-600"
+                      disabled={editingClass && isClassExpired(editingClass.endDate)}
                     >
                       Import Excel
                     </Button>

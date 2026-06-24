@@ -1,22 +1,31 @@
-# Implementation TODO
+# TODO - Learning Path Wizard Implementation
 
-## Task: Profile Page - Training Tab Display
+## Task: Create a 3-step Learning Path Wizard Page (Lộ trình học tập)
 
-### Backend Changes:
-- [x] 1. Add new endpoints in training.controller.ts
-  - [x] 1.1 Get current user's training enrollments (classes enrolled)
-  - [x] 1.2 Get training plans for current user with progress
-- [x] 2. Add routes in training.routes.ts
-- [x] 3. Test the endpoints
+### Steps Overview:
 
-### Frontend Changes:
-- [x] 4. Add API functions in training.ts
-  - [x] 4.1 getMyTrainingEnrollments()
-  - [x] 4.2 getMyTrainingPlans()
-- [x] 5. Update Profile.tsx Training tab
-  - [x] 5.1 Fetch and display training plans
-  - [x] 5.2 Show progress for each plan
-  - [x] 5.3 Click to navigate to CourseLearn
+#### Step 1: Create Class (Tạo lớp học)
+- [x] Select training plan from Training Plan page
+- [x] Set class name (multi-language)
+- [x] Select lecturer
+- [x] Set start/end dates
+- [x] Add students via 2 methods:
+  - [x] Manual add (select from user list)
+  - [x] Import from Excel
 
-### Testing:
-- [x] 6. Test the full flow
+#### Step 2: Build Content (Xây dựng nội dung)
+- [x] Display list of all classes created in Step 1
+- [x] Select a class to add content:
+  - [x] Add courses
+  - [x] Add exams
+  - [x] Add documents
+
+#### Step 3: Review & Confirm (Xem lại & Xác nhận)
+- [x] Review all class information
+- [x] Review all students added
+- [x] Review all content planned
+- [x] Confirm and save (create all data)
+
+### Implementation Files:
+1. `frontend/src/pages/admin/LearningPath.tsx` - Main wizard component
+2. `frontend/src/routes/index.tsx` - Update route to use new component

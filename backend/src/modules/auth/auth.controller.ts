@@ -109,9 +109,13 @@ export const login = async (req: Request, res: Response) => {
       return;
     }
 
-    // Tìm kiếm user bằng usercode
+// Tìm kiếm user bằng usercode (include department and position)
     const user = await prisma.user.findUnique({
       where: { usercode },
+      include: {
+        department: true,
+        position: true,
+      },
     });
     if (!user) {
       res.status(401).json({ message: req.t('INVALID_CREDENTIALS') });
@@ -166,7 +170,7 @@ export const login = async (req: Request, res: Response) => {
       },
     });
 
-    res.status(200).json({
+res.status(200).json({
       message: req.t('LOGIN_SUCCESS'),
       user: {
         id: user.id,
@@ -174,6 +178,20 @@ export const login = async (req: Request, res: Response) => {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
+        department: user.department ? {
+          id: user.department.id,
+          name_vi: user.department.name_vi,
+          name_en: user.department.name_en,
+          name_zh: user.department.name_zh,
+          code: user.department.code,
+        } : null,
+        position: user.position ? {
+          id: user.position.id,
+          name_vi: user.position.name_vi,
+          name_en: user.position.name_en,
+          name_zh: user.position.name_zh,
+          code: user.position.code,
+        } : null,
       },
       accessToken,
       refreshToken: rawRefreshToken,
@@ -264,6 +282,26 @@ export const getProfile = async (req: Request, res: Response) => {
 
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
+      include: {
+        department: {
+          select: {
+            id: true,
+            name_vi: true,
+            name_en: true,
+            name_zh: true,
+            code: true,
+          },
+        },
+        position: {
+          select: {
+            id: true,
+            name_vi: true,
+            name_en: true,
+            name_zh: true,
+            code: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -278,6 +316,8 @@ export const getProfile = async (req: Request, res: Response) => {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
+        department: user.department,
+        position: user.position,
       },
     });
   } catch (error) {

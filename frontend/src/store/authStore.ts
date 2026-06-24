@@ -35,7 +35,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const response = await authPost.login(usercode, password);
 
-      const { user, accessToken, refreshToken } = response.data;
+const { user, accessToken, refreshToken } = response.data;
 
       // Normalize user data from API
       const normalizedUser: User = {
@@ -45,6 +45,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         email: user.email,
         role: user.role === 'ADMIN' ? 'admin' : 'student',
         avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.usercode}`,
+        department: user.department || null,
+        position: user.position || null,
       };
 
       // Store in localStorage

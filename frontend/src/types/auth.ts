@@ -1,5 +1,21 @@
 export type UserRole = 'admin' | 'student' | 'guest';
 
+export interface UserDepartment {
+  id: number;
+  name_vi?: string;
+  name_en?: string;
+  name_zh?: string;
+  code: string;
+}
+
+export interface UserPosition {
+  id: number;
+  name_vi?: string;
+  name_en?: string;
+  name_zh?: string;
+  code: string;
+}
+
 export interface User {
   id: string;
   usercode: string;  // Changed from email - user's unique code like GV001, HV100
@@ -7,6 +23,8 @@ export interface User {
   email?: string;
   role: UserRole;
   avatar?: string;
+  department?: UserDepartment | null;
+  position?: UserPosition | null;
 }
 
 export interface AuthState {

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { getVideoStreamUrl } from '../services/video/video.get';
-import { updateProgress } from '../services/progress';
-import { 
-  PlayCircleOutlined, 
-  PauseCircleOutlined, 
+import { useEffect, useRef, useState, useCallback } from "react";
+import { getVideoStreamUrl } from "../services/video/video.get";
+import { getLessonProgress, updateProgress } from "../services/progress";
+import {
+  PlayCircleOutlined,
+  PauseCircleOutlined,
   SyncOutlined,
   LockOutlined,
   DownloadOutlined,
@@ -11,9 +11,9 @@ import {
   ExpandOutlined,
   CompressOutlined,
   StepBackwardOutlined,
-  StepForwardOutlined
-} from '@ant-design/icons';
-import { Progress, message } from 'antd';
+  QuestionCircleOutlined,
+} from "@ant-design/icons";
+import { Progress, message, Modal } from "antd";
 
 interface VideoPlayerProps {
   videoId: number;
@@ -26,7 +26,7 @@ interface VideoPlayerProps {
   };
   initialSeconds?: number;
   lessonId?: number;
-  trackProgress?: boolean; // Only track progress for academy courses
+  trackProgress?: boolean;
   onTimeUpdate?: (seconds: number) => void;
   onComplete?: () => void;
   onPlayingChange?: (playing: boolean) => void;
@@ -42,7 +42,7 @@ export default function VideoPlayer({
   onTimeUpdate,
   onComplete,
   onPlayingChange,
-  videoName
+  videoName,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -57,9 +57,11 @@ export default function VideoPlayer({
   const [volume, setVolume] = useState(100);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  
-  // Watermark overlay
-  const watermark = courseRule?.showWatermark ? 'E+ Learning' : null;
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [savedSeconds, setSavedSeconds] = useState(0);
+  const [pendingPlay, setPendingPlay] = useState(false);
+
+  const watermark = courseRule?.showWatermark ? "E+ Learning" : null;
 
   // Load video stream URL
   useEffect(() => {
@@ -70,22 +72,71 @@ export default function VideoPlayer({
         setStreamUrl(result.data.streamUrl);
         setLoading(false);
       } catch (err) {
-        setError('Failed to load video');
+        setError("Failed to load video");
         setLoading(false);
       }
     };
     loadStreamUrl();
   }, [videoId]);
 
+  // Fetch saved progress when lessonId is provided
+  useEffect(() => {
+    const fetchSavedProgress = async () => {
+      if (!trackProgress || !lessonId) return;
+
+      try {
+        if (initialSeconds > 0) {
+          setCurrentTime(initialSeconds);
+          setLastSavedTime(initialSeconds);
+          return;
+        }
+
+        const progress = await getLessonProgress(lessonId);
+        if (progress && progress.watchedSeconds > 0 && !progress.completed) {
+          setSavedSeconds(progress.watchedSeconds);
+          setShowResumeModal(true);
+        }
+      } catch (err) {
+        console.error("Failed to fetch saved progress:", err);
+      }
+    };
+
+    fetchSavedProgress();
+  }, [lessonId, trackProgress, initialSeconds]);
+
+  // Handle resume from saved position
+  const handleResumeFromSaved = useCallback(() => {
+    if (videoRef.current && savedSeconds > 0) {
+      videoRef.current.currentTime = savedSeconds;
+      setCurrentTime(savedSeconds);
+      setLastSavedTime(savedSeconds);
+    }
+    setShowResumeModal(false);
+    setPendingPlay(true);
+  }, [savedSeconds]);
+
+  // Handle start from beginning
+  const handleStartFromBeginning = useCallback(() => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      setCurrentTime(0);
+    }
+    setShowResumeModal(false);
+    setPendingPlay(true);
+  }, []);
+
   // Set initial position when video is loaded
   useEffect(() => {
-    if (videoRef.current && initialSeconds > 0 && !loading) {
-      videoRef.current.currentTime = initialSeconds;
-      setCurrentTime(initialSeconds);
+    if (videoRef.current && !loading) {
+      const startTime = initialSeconds > 0 ? initialSeconds : currentTime;
+      if (startTime > 0) {
+        videoRef.current.currentTime = startTime;
+        setCurrentTime(startTime);
+      }
     }
   }, [initialSeconds, loading]);
 
-// Track progress periodically (every 10 seconds)
+  // Track progress periodically (every 10 seconds)
   useEffect(() => {
     if (!trackProgress || !lessonId || !playing) return;
 
@@ -97,7 +148,7 @@ export default function VideoPlayer({
           setLastSavedTime(currentSec);
           onTimeUpdate?.(currentSec);
         } catch (err) {
-          console.error('Failed to save progress:', err);
+          console.error("Failed to save progress:", err);
         }
       }
     }, 10000);
@@ -105,12 +156,25 @@ export default function VideoPlayer({
     return () => clearInterval(interval);
   }, [trackProgress, lessonId, playing, lastSavedTime, onTimeUpdate]);
 
+  // Handle pending play after modal decision
+  useEffect(() => {
+    if (pendingPlay && videoRef.current && !loading) {
+      videoRef.current
+        .play()
+        .then(() => {
+          setPlaying(true);
+          onPlayingChange?.(true);
+        })
+        .catch(console.error);
+      setPendingPlay(false);
+    }
+  }, [pendingPlay, loading, onPlayingChange]);
+
   // Handle video events
   const handleTimeUpdate = useCallback(() => {
     if (videoRef.current) {
       setCurrentTime(videoRef.current.currentTime);
-      
-      // Anti-fast-forward rule
+
       if (courseRule?.antiFastForward && videoRef.current.playbackRate > 1) {
         videoRef.current.playbackRate = 1;
         setPlaybackRate(1);
@@ -126,35 +190,41 @@ export default function VideoPlayer({
 
   const handleEnded = useCallback(async () => {
     setPlaying(false);
-    
-    // Save final progress
+
     if (trackProgress && lessonId) {
       try {
-        // Check if requireFullCompletion is enabled
         if (courseRule?.requireFullCompletion) {
-          // Only mark complete if watched >= 90% of video
           const percentWatched = (currentTime / duration) * 100;
           if (percentWatched >= 90) {
             await updateProgress(lessonId, Math.floor(currentTime), true);
             onComplete?.();
-            message.success('Video completed!');
+            message.success("Video completed!");
           } else {
-            message.warning('You need to watch at least 90% of the video to complete');
+            message.warning(
+              "You need to watch at least 90% of the video to complete",
+            );
           }
         } else {
           await updateProgress(lessonId, Math.floor(currentTime), true);
           onComplete?.();
-          message.success('Video completed!');
+          message.success("Video completed!");
         }
       } catch (err) {
-        console.error('Failed to save progress:', err);
+        console.error("Failed to save progress:", err);
       }
     }
-  }, [trackProgress, lessonId, currentTime, duration, courseRule?.requireFullCompletion, onComplete]);
+  }, [
+    trackProgress,
+    lessonId,
+    currentTime,
+    duration,
+    courseRule?.requireFullCompletion,
+    onComplete,
+  ]);
 
   const togglePlay = useCallback(() => {
     if (!videoRef.current) return;
-    
+
     if (playing) {
       videoRef.current.pause();
     } else {
@@ -163,15 +233,37 @@ export default function VideoPlayer({
     setPlaying(!playing);
   }, [playing]);
 
-const handlePlay = useCallback(() => {
+  const handlePlay = useCallback(() => {
     setPlaying(true);
     onPlayingChange?.(true);
   }, [onPlayingChange]);
-  
-  const handlePause = useCallback(() => {
+
+  const handlePause = useCallback(async () => {
     setPlaying(false);
     onPlayingChange?.(false);
-  }, [onPlayingChange]);
+
+    if (trackProgress && lessonId && videoRef.current) {
+      const currentSec = Math.floor(videoRef.current.currentTime);
+      try {
+        await updateProgress(lessonId, currentSec, false);
+        setLastSavedTime(currentSec);
+      } catch (err) {
+        console.error("Failed to save progress on pause:", err);
+      }
+    }
+  }, [trackProgress, lessonId, onPlayingChange]);
+
+  // Save progress on component unmount
+  useEffect(() => {
+    return () => {
+      if (trackProgress && lessonId && videoRef.current) {
+        const currentSec = Math.floor(videoRef.current.currentTime);
+        if (currentSec > lastSavedTime) {
+          updateProgress(lessonId, currentSec, false).catch(console.error);
+        }
+      }
+    };
+  }, [trackProgress, lessonId, lastSavedTime]);
 
   // Lock speed at 1x if rule is enabled
   useEffect(() => {
@@ -185,23 +277,20 @@ const handlePlay = useCallback(() => {
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   // Calculate progress percentage
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-// Download handler
   const handleDownload = () => {
     if (courseRule?.blockDownload) {
-      message.warning('Download is disabled for this course');
+      message.warning("Download is disabled for this course");
       return;
     }
-    // Trigger download - in production, this would be a signed URL
-    message.info('Download feature coming soon');
+    message.info("Download feature coming soon");
   };
 
-  // Volume handler
   const handleVolumeChange = (value: number) => {
     setVolume(value);
     if (videoRef.current) {
@@ -210,7 +299,6 @@ const handlePlay = useCallback(() => {
     }
   };
 
-  // Toggle mute
   const toggleMute = () => {
     if (videoRef.current) {
       if (isMuted) {
@@ -223,17 +311,18 @@ const handlePlay = useCallback(() => {
     }
   };
 
-  // Skip forward/backward
   const skipTime = (seconds: number) => {
     if (videoRef.current) {
-      videoRef.current.currentTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + seconds));
+      videoRef.current.currentTime = Math.max(
+        0,
+        Math.min(duration, videoRef.current.currentTime + seconds),
+      );
     }
   };
 
-  // Fullscreen handler
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
-    
+
     if (!isFullscreen) {
       if (containerRef.current.requestFullscreen) {
         containerRef.current.requestFullscreen();
@@ -245,13 +334,13 @@ const handlePlay = useCallback(() => {
     }
   };
 
-  // Listen for fullscreen changes
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
   if (loading) {
@@ -286,130 +375,168 @@ const handlePlay = useCallback(() => {
     );
   }
 
-return (
-    <div ref={containerRef} className="relative aspect-video bg-black rounded-lg overflow-hidden group">
-{/* Video Element */}
-<video
-        ref={videoRef}
-        src={streamUrl}
-        className="w-full h-full"
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onEnded={handleEnded}
-        onPlay={handlePlay}
-        onPause={handlePause}
-        playsInline
-        muted={isMuted}
-      />
+  return (
+    <>
+      <Modal
+        open={showResumeModal}
+        title={
+          <span className="flex items-center gap-2">
+            <QuestionCircleOutlined className="text-blue-500" />
+            Tiếp tục xem video?
+          </span>
+        }
+        onCancel={() => {
+          setShowResumeModal(false);
+          handleStartFromBeginning();
+        }}
+        footer={[
+          <button
+            key="start-over"
+            onClick={handleStartFromBeginning}
+            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition-colors"
+          >
+            Xem lại từ đầu
+          </button>,
+          <button
+            key="resume"
+            onClick={handleResumeFromSaved}
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+          >
+            Tiếp tục (đến {formatTime(savedSeconds)})
+          </button>,
+        ]}
+closable={false}
+        mask={{ closable: false }}
+      >
+        <p className="text-gray-600">
+          Bạn đã xem dừng lại ở phút <strong>{formatTime(savedSeconds)}</strong>
+          . Bạn có muốn tiếp tục xem từ đoạn này không?
+        </p>
+      </Modal>
 
-      {/* Watermark Overlay */}
-      {watermark && (
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-20">
-          <div className="text-white text-6xl font-bold transform -rotate-45">
-            {watermark}
+      <div
+        ref={containerRef}
+        className="relative aspect-video bg-black rounded-lg overflow-hidden group"
+      >
+        <video
+          ref={videoRef}
+          src={streamUrl}
+          className="w-full h-full"
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+          onEnded={handleEnded}
+          onPlay={handlePlay}
+          onPause={handlePause}
+          playsInline
+          muted={isMuted}
+        />
+
+        {watermark && (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-20">
+            <div className="text-white text-6xl font-bold transform -rotate-45">
+              {watermark}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Controls Overlay */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-        {/* Progress Bar */}
-        <div className="mb-3">
-          <Progress 
-            percent={progressPercent} 
-            showInfo={false}
-            strokeColor="#3b82f6"
-            railColor="rgba(255,255,255,0.3)"
-          />
-        </div>
+{!playing && !loading && streamUrl && (
+          <button
+            onClick={togglePlay}
+            className="absolute inset-0 flex items-center justify-center bg-transparent md:opacity-0 md:hover:opacity-100 transition-opacity cursor-pointer"
+          >
+            <PlayCircleOutlined
+              className="text-6xl hover:text-blue-400 transition-colors"
+              style={{ color: "white" }}
+            />
+          </button>
+        )}
 
-        {/* Control Buttons - Left Side */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {/* Skip Backward */}
-            <button 
-              onClick={() => skipTime(-10)}
-              className="text-white text-lg hover:text-blue-400 transition-colors"
-              title="Rewind 10s"
-            >
-              <StepBackwardOutlined />
-            </button>
-
-            {/* Play/Pause */}
-            <button 
-              onClick={togglePlay}
-              className="text-white text-3xl hover:text-blue-400 transition-colors"
-            >
-              {playing ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-            </button>
-
-            {/* Skip Forward */}
-            <button 
-              onClick={() => skipTime(10)}
-              className="text-white text-lg hover:text-blue-400 transition-colors"
-              title="Forward 10s"
-            >
-              <StepForwardOutlined />
-            </button>
-
-            {/* Time Display */}
-            <span className="text-white text-sm ml-2">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
+<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+          <div className="mb-3">
+            <Progress
+              percent={progressPercent}
+              showInfo={false}
+              strokeColor="#3b82f6"
+              railColor="rgba(255,255,255,0.3)"
+            />
           </div>
 
-          {/* Control Buttons - Right Side */}
-          <div className="flex items-center gap-2">
-{/* Volume Control */}
-            <div className="flex items-center gap-1 group/vol">
-              <button 
-                onClick={toggleMute}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => skipTime(-10)}
                 className="text-white text-lg hover:text-blue-400 transition-colors"
-                title={isMuted ? 'Unmute' : 'Mute'}
+                title="Rewind 10s"
               >
-                {isMuted || volume === 0 ? <SoundOutlined /> : <SoundOutlined />}
+                <StepBackwardOutlined />
               </button>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={isMuted ? 0 : volume}
-                onChange={(e) => handleVolumeChange(Number(e.target.value))}
-                className="w-16 h-1 cursor-pointer accent-blue-500"
-                title={`Volume: ${volume}%`}
-              />
+
+              <button
+                onClick={togglePlay}
+                className="text-white text-3xl hover:text-blue-400 transition-colors"
+              >
+                {playing ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+              </button>
+
+              <span className="text-white text-sm ml-2">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
             </div>
 
-            {/* Speed Indicator */}
-            {courseRule?.lockSpeed1x && (
-              <span className="text-yellow-400 text-sm flex items-center gap-1">
-                <LockOutlined /> 1x
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 group/vol">
+                <button
+                  onClick={toggleMute}
+                  className="text-white text-lg hover:text-blue-400 transition-colors"
+                  title={isMuted ? "Unmute" : "Mute"}
+                >
+                  {isMuted || volume === 0 ? (
+                    <SoundOutlined />
+                  ) : (
+                    <SoundOutlined />
+                  )}
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={isMuted ? 0 : volume}
+                  onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                  className="w-16 h-1 cursor-pointer accent-blue-500"
+                  title={`Volume: ${volume}%`}
+                />
+              </div>
 
-            {/* Fullscreen */}
-            <button 
-              onClick={toggleFullscreen}
-              className="text-white text-lg hover:text-blue-400 transition-colors"
-              title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-            >
-              {isFullscreen ? <CompressOutlined /> : <ExpandOutlined />}
-            </button>
+              {courseRule?.lockSpeed1x && (
+                <span className="text-yellow-400 text-sm flex items-center gap-1">
+                  <LockOutlined /> 1x
+                </span>
+              )}
 
-            {/* Download */}
-            <button 
-              onClick={handleDownload}
-              className={`text-white text-lg hover:text-blue-400 transition-colors ${
-                courseRule?.blockDownload ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              disabled={courseRule?.blockDownload}
-              title="Download"
-            >
-              <DownloadOutlined />
-            </button>
+              <button
+                onClick={toggleFullscreen}
+                className="text-white text-lg hover:text-blue-400 transition-colors"
+                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+              >
+                {isFullscreen ? <CompressOutlined /> : <ExpandOutlined />}
+              </button>
+
+              <button
+                onClick={handleDownload}
+                className={`text-white text-lg hover:text-blue-400 transition-colors ${
+                  courseRule?.blockDownload
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+                disabled={courseRule?.blockDownload}
+                title="Download"
+              >
+                <DownloadOutlined />
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -76,7 +76,7 @@ export const getCourse = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const course = await prisma.course.findUnique({
+const course = await prisma.course.findUnique({
       where: { id: courseId },
       include: {
         academy: true,
@@ -96,6 +96,9 @@ export const getCourse = async (req: Request, res: Response): Promise<void> => {
         },
         rule: true,
         lessons: {
+          include: {
+            video: true,
+          },
           orderBy: { order: "asc" },
         },
       },

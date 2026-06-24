@@ -35,6 +35,41 @@ export const coverMiddleware = multer({
 type TrainingPlanStatus = 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
 type TrainingResourceType = 'COURSE' | 'EXAM' | 'DOCUMENT';
 
+// Helper function to auto-update training plan status based on endDate
+// Returns true if status was changed
+const autoUpdatePlanStatus = async (planId: number): Promise<boolean> => {
+  try {
+    const plan = await prisma.trainingPlan.findUnique({
+      where: { id: planId },
+      select: { status: true, endDate: true }
+    });
+    
+    if (!plan) return false;
+    
+    // If plan is ACTIVE and endDate has passed, mark as COMPLETED
+    if (plan.status === 'ACTIVE' && plan.endDate && new Date(plan.endDate) < new Date()) {
+      await prisma.trainingPlan.update({
+        where: { id: planId },
+        data: { status: 'COMPLETED' }
+      });
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error auto-updating plan status:', error);
+    return false;
+  }
+};
+
+// Helper function to get computed status based on endDate
+const getComputedPlanStatus = (status: string, endDate: Date | null): string => {
+  if (status === 'ACTIVE' && endDate && new Date(endDate) < new Date()) {
+    return 'COMPLETED';
+  }
+  return status;
+};
+
 // Helper to safely extract string from body
 const safeBodyString = (val: any): string | undefined => {
   if (!val) return undefined;
@@ -153,13 +188,51 @@ export const updateTrainingClass = async (req: Request, res: Response) => {
     const name_en = safeBodyString(req.body.name_en);
     const name_zh = safeBodyString(req.body.name_zh);
     const description = safeBodyString(req.body.description);
+    const description_vi = safeBodyString(req.body.description_vi);
+    const description_en = safeBodyString(req.body.description_en);
+    const description_zh = safeBodyString(req.body.description_zh);
+    const content_vi = safeBodyString(req.body.content_vi);
+    const content_en = safeBodyString(req.body.content_en);
+    const content_zh = safeBodyString(req.body.content_zh);
+    const objectives_vi = safeBodyString(req.body.objectives_vi);
+    const objectives_en = safeBodyString(req.body.objectives_en);
+    const objectives_zh = safeBodyString(req.body.objectives_zh);
+    const targetAudience = safeBodyString(req.body.targetAudience);
     const academyId = req.body.academyId !== undefined 
       ? (req.body.academyId ? parseInt(String(req.body.academyId)) : null)
+      : undefined;
+    const lecturerId = req.body.lecturerId !== undefined 
+      ? (req.body.lecturerId ? parseInt(String(req.body.lecturerId)) : null)
+      : undefined;
+    const startDate = req.body.startDate !== undefined 
+      ? (req.body.startDate ? new Date(req.body.startDate) : null)
+      : undefined;
+    const endDate = req.body.endDate !== undefined 
+      ? (req.body.endDate ? new Date(req.body.endDate) : null)
       : undefined;
 
     const trainingClass = await prisma.trainingClass.update({
       where: { id },
-      data: { name_vi, name_en, name_zh, description, academyId },
+      data: { 
+        name_vi, 
+        name_en, 
+        name_zh, 
+        description, 
+        description_vi,
+        description_en,
+        description_zh,
+        content_vi,
+        content_en,
+        content_zh,
+        objectives_vi,
+        objectives_en,
+        objectives_zh,
+        targetAudience,
+        academyId, 
+        lecturerId,
+        startDate,
+        endDate,
+      },
     });
 
     res.status(200).json({ message: 'Training class updated successfully', trainingClass });
@@ -187,6 +260,20 @@ export const deleteTrainingClass = async (req: Request, res: Response) => {
 };
 
 // ============ TRAINING PLAN MANAGEMENT ============
+
+// Helper function to get current status based on endDate
+const getStatusBasedOnDate = (status: string, endDate: Date | null): string => {
+  if (status !== 'ACTIVE') return status;
+  if (!endDate) return status;
+  
+  const now = new Date();
+  const end = new Date(endDate);
+  
+  if (now > end) {
+    return 'COMPLETED';
+  }
+  return status;
+};
 
 // Get all training plans
 export const getTrainingPlans = async (req: Request, res: Response) => {
@@ -232,6 +319,8 @@ export const getTrainingPlans = async (req: Request, res: Response) => {
             name_en: true,
             name_zh: true,
             code: true,
+            startDate: true,
+            endDate: true,
           },
         },
         resources: {
@@ -241,7 +330,15 @@ export const getTrainingPlans = async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.status(200).json({ success: true, data: trainingPlans });
+    // Auto-update status based on endDate and add startDate/endDate
+    const plansWithAutoStatus = trainingPlans.map((plan: any) => ({
+      ...plan,
+      status: getStatusBasedOnDate(plan.status, plan.endDate),
+      startDate: plan.startDate,
+      endDate: plan.endDate,
+    }));
+
+    res.status(200).json({ success: true, data: plansWithAutoStatus });
   } catch (error) {
     res.status(500).json({ success: false, message: req.t('INTERNAL_SERVER_ERROR') });
   }
@@ -670,6 +767,7 @@ export const getMyTrainingPlans = async (req: Request, res: Response) => {
     const classIds = enrollments.map((e) => e.classId);
 
 // Get training plans linked to those classes
+    // Include startDate and endDate for frontend to display and check expiration
     const trainingPlans = await prisma.trainingPlan.findMany({
       where: {
         trainingClassId: { in: classIds },
@@ -679,7 +777,13 @@ export const getMyTrainingPlans = async (req: Request, res: Response) => {
         title_vi: true,
         title_en: true,
         title_zh: true,
+        description_vi: true,
+        description_en: true,
+        description_zh: true,
         coverImage: true,
+        startDate: true,
+        endDate: true,
+        status: true,
         academy: {
           select: {
             id: true,
@@ -696,6 +800,8 @@ export const getMyTrainingPlans = async (req: Request, res: Response) => {
             name_en: true,
             name_zh: true,
             code: true,
+            startDate: true,
+            endDate: true,
           },
         },
         resources: {
@@ -761,9 +867,15 @@ export const getMyTrainingPlans = async (req: Request, res: Response) => {
         const totalVideosAll = allResourcesWithVideos.reduce((sum, r) => sum + r.totalVideos, 0);
         const completedVideosAll = allResourcesWithVideos.reduce((sum, r) => sum + r.completedVideos, 0);
 
+        // Get the effective status based on endDate
+        const effectiveStatus = getStatusBasedOnDate(plan.status, plan.endDate);
+
         // Cast plan to any to allow adding dynamic fields
         const planWithProgress: any = {
           ...plan,
+          status: effectiveStatus,
+          startDate: plan.startDate,
+          endDate: plan.endDate,
           resources: resourcesWithProgress,
           totalVideos: totalVideosAll,
           completedVideos: completedVideosAll,
@@ -887,6 +999,16 @@ export const addStudentToClass = async (req: Request, res: Response) => {
     if (!trainingClass) {
       res.status(404).json({ message: 'Training class not found' });
       return;
+    }
+
+    // Check if class has expired (cannot add students to expired classes)
+    if (trainingClass.endDate) {
+      const now = new Date();
+      const end = new Date(trainingClass.endDate);
+      if (now > end) {
+        res.status(400).json({ message: 'Không thể thêm học viên vào lớp học đã hết hạn' });
+        return;
+      }
     }
 
     // Check if user exists
