@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, UploadOutli
 import { useTranslation } from 'react-i18next';
 import { authGet } from '../../services/auth/auth.get';
 import { authPost } from '../../services/auth/auth.post';
+import * as XLSX from 'xlsx';
 
 interface Department {
   id: number;
@@ -172,15 +173,20 @@ export default function UserManagement() {
     return false; // Prevent auto-upload
   };
 
-  const handleDownloadTemplate = async () => {
+const handleDownloadTemplate = async () => {
     try {
-      // Call the template endpoint
-      const response = await authGet.getUsers(); // We'll use a different approach for template
-      
-      // For now, show message - template download would need a separate endpoint
-      message.info('Template feature coming soon');
+      const blob = await authGet.getUserTemplate();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'template_nguoi_dung.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      message.success('Đã tải template');
     } catch (error: any) {
-      message.error('Failed to download template');
+      message.error('Không thể tải template');
     }
   };
 
@@ -267,7 +273,7 @@ return (
         <h2 className="text-xl font-bold text-slate-800">
           {t('user.management') || 'User Management'}
         </h2>
-        <div className="flex flex-wrap gap-2">
+<div className="flex flex-wrap gap-2">
           <Button
             icon={<ReloadOutlined />}
             onClick={fetchUsers}
@@ -275,6 +281,13 @@ return (
             size="small"
           >
             {t('common.refresh') || 'Refresh'}
+          </Button>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={handleDownloadTemplate}
+            size="small"
+          >
+            Tải Template
           </Button>
           <Upload
             showUploadList={false}

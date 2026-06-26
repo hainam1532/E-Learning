@@ -18,6 +18,10 @@ router.post('/logout', authMiddleware, logout);
 router.get('/profile', authMiddleware, getProfile);
 
 // ============ ADMIN USER MANAGEMENT ROUTES (Yêu cầu quyền ADMIN) ============
+// Import/Export users - NOTE: template must be BEFORE :id routes to avoid being caught as :id
+router.get('/users/template', authMiddleware, exportUserTemplate);
+router.post('/users/import', authMiddleware, upload.single('file'), (req: any, res: Response) => importUsers(req, res));
+
 // Lấy danh sách user
 router.get('/users', authMiddleware, getUsers);
 // Lấy thông tin 1 user
@@ -28,10 +32,6 @@ router.post('/users', authMiddleware, createUser);
 router.put('/users/:id', authMiddleware, updateUser);
 // Xóa user
 router.delete('/users/:id', authMiddleware, deleteUser);
-
-// Import/Export users
-router.post('/users/import', authMiddleware, upload.single('file'), (req: any, res: Response) => importUsers(req, res));
-router.get('/users/template', authMiddleware, exportUserTemplate);
 
 // ============ DEPARTMENT MANAGEMENT ============
 router.get('/departments', authMiddleware, getDepartments);

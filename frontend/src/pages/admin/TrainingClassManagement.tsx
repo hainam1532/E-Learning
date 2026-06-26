@@ -34,6 +34,7 @@ import {
   InfoCircleOutlined,
   BarChartOutlined,
   LineChartOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
@@ -60,6 +61,7 @@ import {
   addStudentToClass,
   removeStudentFromClass,
   importStudentsToClass,
+  downloadStudentTemplate,
   generateClassReport,
   getTrainingPlans,
   type TrainingClass,
@@ -1004,7 +1006,7 @@ export default function TrainingClassManagement() {
                       icon={<PlusOutlined />}
                       onClick={() => setAddStudentModalOpen(true)}
                       className="bg-blue-600 hover:bg-blue-700"
-                      disabled={editingClass && isClassExpired(editingClass.endDate)}
+                      disabled={!editingClass || isClassExpired(editingClass.endDate)}
                     >
                       Thêm học sinh
                     </Button>
@@ -1017,9 +1019,34 @@ export default function TrainingClassManagement() {
                         setImportModalOpen(true);
                       }}
                       className="hover:border-green-600 hover:text-green-600"
-                      disabled={editingClass && isClassExpired(editingClass.endDate)}
+                      disabled={!editingClass || isClassExpired(editingClass.endDate)}
                     >
                       Import Excel
+                    </Button>
+                    <Button
+                      type="default"
+                      icon={<DownloadOutlined />}
+                      onClick={() => {
+                        if (editingClass) {
+                          downloadStudentTemplate(editingClass.id).then((blob) => {
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `template_hoc_vien_${editingClass.code}.xlsx`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                            message.success('Đã tải template');
+                          }).catch((err) => {
+                            message.error('Không thể tải template');
+                          });
+                        }
+                      }}
+                      className="hover:border-blue-600 hover:text-blue-600"
+                      disabled={!editingClass}
+                    >
+                      Tải Template
                     </Button>
                   </div>
 
@@ -1324,7 +1351,7 @@ export default function TrainingClassManagement() {
                                   ))}
                                 </Pie>
                                 <Legend />
-                                <RechartsTooltip formatter={(value: number, _name: string, item: any) => [`${value} học viên`, item?.payload?.label]} />
+<RechartsTooltip formatter={(value, _name, item) => [`${value ?? 0} học viên`, String(item?.payload?.label ?? '')]} />
                               </PieChart>
                             </ResponsiveContainer>
                           </div>

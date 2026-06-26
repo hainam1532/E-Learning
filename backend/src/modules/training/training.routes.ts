@@ -20,6 +20,7 @@ import {
   addStudentToClass,
   removeStudentFromClass,
   importStudentsToClass,
+  exportStudentTemplate,
   generateClassReport,
   getMyTrainingEnrollments,
   getMyTrainingPlans,
@@ -55,6 +56,8 @@ router.post('/classes/:id/students', authMiddleware, addStudentToClass);
 router.delete('/classes/:id/students/:userId', authMiddleware, removeStudentFromClass);
 // Import students from Excel
 router.post('/classes/:id/students/import', authMiddleware, upload.single('file'), importStudentsToClass);
+// Export student template
+router.get('/classes/:id/students/template', authMiddleware, exportStudentTemplate);
 // Generate class report
 router.get('/classes/:id/report', authMiddleware, generateClassReport);
 

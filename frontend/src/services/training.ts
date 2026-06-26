@@ -293,6 +293,14 @@ export async function importStudentsToClass(classId: number, file: File): Promis
   return response.data.results;
 }
 
+// Download student template for class
+export async function downloadStudentTemplate(classId: number): Promise<Blob> {
+  const response = await api.get(`/training/classes/${classId}/students/template`, {
+    responseType: 'blob',
+  });
+  return response.data;
+}
+
 export async function generateClassReport(classId: number): Promise<ClassReport> {
   const response = await api.get<ClassReportResponse>(`/training/classes/${classId}/report`);
   return response.data.data;

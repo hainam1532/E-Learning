@@ -1464,6 +1464,55 @@ export const importStudentsToClass = async (req: Request, res: Response) => {
   }
 };
 
+// Export student template for class
+export const exportStudentTemplate = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const classId = parseInt(safeParamString(req.params.id));
+
+    if (isNaN(classId)) {
+      res.status(400).json({ message: 'Invalid class ID' });
+      return;
+    }
+
+    // Check if class exists
+    const trainingClass = await prisma.trainingClass.findUnique({ where: { id: classId } });
+    if (!trainingClass) {
+      res.status(404).json({ message: 'Training class not found' });
+      return;
+    }
+
+    // Create template with sample data
+    const templateData = [
+      { usercode: 'HV001' },
+      { usercode: 'HV002' },
+    ];
+
+    // Create worksheet using XLSX
+    const XLSX = await import('xlsx');
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Students');
+
+    // Set column width
+    worksheet['!cols'] = [{ wch: 15 }];
+
+    // Generate buffer
+    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=student_template_${trainingClass.code}.xlsx`);
+    res.send(Buffer.from(buffer));
+  } catch (error) {
+    console.error('exportStudentTemplate error:', error);
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
 // Generate class report
 export const generateClassReport = async (req: Request, res: Response) => {
   try {

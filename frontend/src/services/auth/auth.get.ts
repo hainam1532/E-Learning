@@ -57,13 +57,23 @@ export const authGet = {
    */
   getQuestions: (categoryId: number) => api.get(`/auth/question-categories/${categoryId}/questions`),
 
-  /**
+/**
    * Download question import template (Admin)
    */
   getQuestionTemplate: () =>
     api.get('/auth/questions/template', {
       responseType: 'blob',
     }),
+
+/**
+   * Download user import template (Admin)
+   */
+  getUserTemplate: async () => {
+    const response = await api.get('/auth/users/template', {
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  },
 
   /**
    * Get exam sessions (Admin)

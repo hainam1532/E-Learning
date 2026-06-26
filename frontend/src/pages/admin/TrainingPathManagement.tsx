@@ -25,6 +25,7 @@ import {
   PlusOutlined,
   ReadOutlined,
   TeamOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { UploadFile } from 'antd/es/upload/interface';
@@ -337,12 +338,29 @@ setResourceModalOpen(false);
     message.success('Đã thêm tài liệu vào lớp');
   };
 
-  const removeResource = (index: number) => {
+const removeResource = (index: number) => {
     if (!selectedDraftClass) return;
     updateDraftClass(selectedDraftClass.tempId, (prev) => ({
       ...prev,
       resources: prev.resources.filter((_, i) => i !== index),
     }));
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await authGet.getUserTemplate();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'template_hoc_vien.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      message.success('Đã tải template');
+    } catch (error: any) {
+      message.error('Không thể tải template');
+    }
   };
 
   const submitWizard = async () => {
@@ -610,7 +628,7 @@ const createdClass = await createTrainingClass({
                         />
                       </div>
 
-                      <div>
+<div>
                         <Text strong>Import Excel học viên</Text>
                         <Upload
                           accept=".xlsx,.xls"
@@ -628,6 +646,15 @@ const createdClass = await createTrainingClass({
                             Chọn file Excel
                           </Button>
                         </Upload>
+                        <Button
+                          type="link"
+                          icon={<DownloadOutlined />}
+                          onClick={handleDownloadTemplate}
+                          className="mt-2 ml-2 text-blue-600"
+                          size="small"
+                        >
+                          Tải mẫu
+                        </Button>
                       </div>
                     </div>
                   </Card>

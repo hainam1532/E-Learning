@@ -33,6 +33,11 @@ import ExamSessionManagement from "../pages/admin/ExamSessionManagement";
 import ReportsOverview from "../pages/admin/ReportsOverview";
 import ReportsTime from "../pages/admin/ReportsTime";
 
+const routerBasenameRaw = (import.meta.env.VITE_ROUTER_BASENAME || '/').trim();
+const routerBasename = routerBasenameRaw === '/'
+  ? '/'
+  : routerBasenameRaw.replace(/\/+$/, '');
+
 
 // Placeholder components for new menu items
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -228,4 +233,6 @@ export const router = createBrowserRouter([
     path: "*",
     element: <Navigate to="/" replace />,
   },
-]);
+], {
+  basename: routerBasename,
+});
