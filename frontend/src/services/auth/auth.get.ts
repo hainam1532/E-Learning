@@ -72,6 +72,11 @@ export const authGet = {
     api.get('/auth/exam-sessions', { params: { academyId, search } }),
 
   /**
+   * Get admin dashboard report (Admin)
+   */
+  getAdminDashboardReport: () => api.get('/auth/reports/dashboard'),
+
+  /**
    * Get learning overview report (Admin)
    */
   getLearningOverviewReport: (params?: { usercode?: string; departmentId?: number }) =>
@@ -82,6 +87,38 @@ export const authGet = {
    */
   exportLearningOverviewReport: (params?: { usercode?: string; departmentId?: number }) =>
     api.get('/auth/reports/overview/export', {
+      params,
+      responseType: 'blob',
+    }),
+
+  /**
+   * Get learning time report (Admin)
+   */
+  getLearningTimeReport: (params?: {
+    usercode?: string;
+    departmentId?: number;
+    courseId?: number;
+    startDate?: string;
+    endDate?: string;
+  }) => api.get('/auth/reports/time', { params }),
+
+  /**
+   * Get learning time report detail for one user-course row (Admin)
+   */
+  getLearningTimeReportDetail: (params: { userId: number; courseId: number; planId?: number }) =>
+    api.get('/auth/reports/time/detail', { params }),
+
+  /**
+   * Export learning time report to Excel (Admin)
+   */
+  exportLearningTimeReportExcel: (params?: {
+    usercode?: string;
+    departmentId?: number;
+    courseId?: number;
+    startDate?: string;
+    endDate?: string;
+  }) =>
+    api.get('/auth/reports/time/export', {
       params,
       responseType: 'blob',
     }),

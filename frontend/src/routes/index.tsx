@@ -31,6 +31,7 @@ import QuestionBankManagement from "../pages/admin/QuestionBankManagement";
 import ExamPaperManagement from "../pages/admin/ExamPaperManagement";
 import ExamSessionManagement from "../pages/admin/ExamSessionManagement";
 import ReportsOverview from "../pages/admin/ReportsOverview";
+import ReportsTime from "../pages/admin/ReportsTime";
 
 
 // Placeholder components for new menu items
@@ -215,7 +216,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "reports/time",
-            element: <PlaceholderPage title="Báo cáo thời gian học tập" />,
+            element: <ReportsTime />,
           },
         ],
       },

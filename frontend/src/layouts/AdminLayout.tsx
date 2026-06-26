@@ -179,17 +179,17 @@ const menuItems: MenuItem[] = [
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100 flex font-sans">
+    <div className="h-screen bg-slate-100 flex font-sans overflow-hidden">
 {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex bg-white text-slate-700 flex-col border-r border-slate-200 shadow-sm transition-all duration-300">
+      <aside className="hidden md:flex h-full bg-white text-slate-700 flex-col border-r border-slate-200 shadow-sm transition-all duration-300">
         {/* Brand Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 bg-white">
           <Link to="/admin" className="flex items-center gap-2 overflow-hidden">
-            <div className="w-9 h-9 min-w-9 rounded-lg bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-blue-500/20">
+            <div className="w-9 h-9 min-w-9 rounded-lg bg-linear-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-blue-500/20">
               A
             </div>
             {!collapsed && (
-              <span className="text-lg font-bold bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent truncate whitespace-nowrap animate-fade-in">
+              <span className="text-lg font-bold bg-linear-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent truncate whitespace-nowrap animate-fade-in">
                 Admin Panel
               </span>
             )}
@@ -307,7 +307,7 @@ const menuItems: MenuItem[] = [
       </aside>
 
       {/* Main Panel */}
-      <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
 {/* Top Navbar */}
         <header className="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between shadow-sm sticky top-0 z-40">
           {/* Mobile: menu button / Desktop: collapse button */}
@@ -349,7 +349,7 @@ const menuItems: MenuItem[] = [
         </header>
 
 {/* Page Working Content Area */}
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto max-w-7xl w-full mx-auto">
+        <main className="flex-1 min-h-0 p-4 md:p-8 overflow-y-auto w-full">
           <Outlet />
         </main>
       </div>
@@ -358,7 +358,7 @@ const menuItems: MenuItem[] = [
 <Drawer
         title={
           <Link to="/admin" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white font-black text-sm">
+            <div className="w-8 h-8 rounded-lg bg-linear-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white font-black text-sm">
               A
             </div>
             <span className="text-lg font-bold text-slate-800">Admin Panel</span>

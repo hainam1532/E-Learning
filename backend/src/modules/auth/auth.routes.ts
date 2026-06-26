@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
 import { login, refresh, logout, getProfile, getUsers, getUser, createUser, updateUser, deleteUser, getDepartments, createDepartment, updateDepartment, deleteDepartment, getPositions, createPosition, updatePosition, deletePosition, getConfigs, setConfig, deleteConfig, getPublicAcademies, getAcademies, getAcademy, createAcademy, updateAcademy, deleteAcademy, getAcademyUsers, addAcademyUser, removeAcademyUser, getLecturers, createLecturer, updateLecturer, deleteLecturer, importUsers, exportUserTemplate, getQuestionCategories, createQuestionCategory, updateQuestionCategory, deleteQuestionCategory, getQuestions, createQuestion, updateQuestion, deleteQuestion, importQuestions, exportQuestionTemplate, getLearningOverviewReport, exportLearningOverviewReportExcel } from './auth.controller';
+import { getLearningTimeReport, getLearningTimeReportDetail, exportLearningTimeReportExcel } from './reportTime.controller';
+import { getAdminDashboardReport } from './dashboard.controller';
 import { getExamSessions, createExamSession, updateExamSession, deleteExamSession } from './examSession.controller';
 import { authMiddleware } from '../../middlewares/auth';
 
@@ -91,7 +93,11 @@ router.put('/exam-sessions/:id', authMiddleware, updateExamSession);
 router.delete('/exam-sessions/:id', authMiddleware, deleteExamSession);
 
 // ============ REPORTS ============
+router.get('/reports/dashboard', authMiddleware, getAdminDashboardReport);
 router.get('/reports/overview', authMiddleware, getLearningOverviewReport);
 router.get('/reports/overview/export', authMiddleware, exportLearningOverviewReportExcel);
+router.get('/reports/time', authMiddleware, getLearningTimeReport);
+router.get('/reports/time/detail', authMiddleware, getLearningTimeReportDetail);
+router.get('/reports/time/export', authMiddleware, exportLearningTimeReportExcel);
 
 export default router;
