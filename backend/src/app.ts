@@ -8,6 +8,8 @@ import videoRoutes from "./modules/video/video.routes";
 import courseRoutes from "./modules/course/course.routes";
 import progressRoutes from "./modules/progress/progress.routes";
 import trainingRoutes from "./modules/training/training.routes";
+import documentRoutes from "./modules/document/document.routes";
+import questionRoutes from "./modules/question/question.routes";
 import { prisma } from "./config/db";
 import { redisClient } from "./config/redis";
 
@@ -46,6 +48,8 @@ app.use("/api/videos", videoRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/training", trainingRoutes);
+app.use("/api/documents", documentRoutes);
+app.use("/api/questions", questionRoutes);
 
 // Test endpoint
 app.get("/api/ping", (req, res) => {

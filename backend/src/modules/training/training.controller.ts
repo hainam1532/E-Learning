@@ -35,6 +35,59 @@ export const coverMiddleware = multer({
 type TrainingPlanStatus = 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
 type TrainingResourceType = 'COURSE' | 'EXAM' | 'DOCUMENT';
 
+let trainingResourceProgressTableReady = false;
+let classReportExamAttemptsTableReady = false;
+
+const ensureTrainingResourceProgressTable = async () => {
+  if (trainingResourceProgressTableReady) return;
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS training_resource_progress (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      training_resource_id INTEGER NOT NULL REFERENCES training_resources(id) ON DELETE CASCADE,
+      completed BOOLEAN NOT NULL DEFAULT false,
+      completed_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      UNIQUE (user_id, training_resource_id)
+    );
+  `);
+
+  trainingResourceProgressTableReady = true;
+};
+
+const ensureClassReportExamAttemptsTable = async () => {
+  if (classReportExamAttemptsTableReady) return;
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS exam_attempts (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      exam_session_id INTEGER NOT NULL REFERENCES exam_sessions(id) ON DELETE CASCADE,
+      training_plan_id INTEGER REFERENCES training_plans(id) ON DELETE SET NULL,
+      status VARCHAR(32) NOT NULL DEFAULT 'ONGOING',
+      started_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      submitted_at TIMESTAMP,
+      score NUMERIC(5,2),
+      passed BOOLEAN,
+      total_questions INTEGER NOT NULL DEFAULT 0,
+      correct_count INTEGER NOT NULL DEFAULT 0,
+      wrong_count INTEGER NOT NULL DEFAULT 0,
+      unanswered_count INTEGER NOT NULL DEFAULT 0,
+      cheat_warnings INTEGER NOT NULL DEFAULT 0,
+      is_fraud BOOLEAN NOT NULL DEFAULT false,
+      time_spent_seconds INTEGER NOT NULL DEFAULT 0,
+      question_order JSONB NOT NULL DEFAULT '[]'::jsonb,
+      answers JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  classReportExamAttemptsTableReady = true;
+};
+
 // Helper function to auto-update training plan status based on endDate
 // Returns true if status was changed
 const autoUpdatePlanStatus = async (planId: number): Promise<boolean> => {
@@ -646,6 +699,35 @@ export const addTrainingResource = async (req: Request, res: Response) => {
       return;
     }
 
+    if (!['COURSE', 'EXAM', 'DOCUMENT'].includes(type)) {
+      res.status(400).json({ message: 'Invalid resource type' });
+      return;
+    }
+
+    if (type === 'COURSE') {
+      const course = await prisma.course.findUnique({ where: { id: refId }, select: { id: true } });
+      if (!course) {
+        res.status(404).json({ message: 'Course not found' });
+        return;
+      }
+    }
+
+    if (type === 'EXAM') {
+      const session = await prisma.examSession.findUnique({ where: { id: refId }, select: { id: true } });
+      if (!session) {
+        res.status(404).json({ message: 'Exam session not found' });
+        return;
+      }
+    }
+
+    if (type === 'DOCUMENT') {
+      const document = await prisma.document.findUnique({ where: { id: refId }, select: { id: true } });
+      if (!document) {
+        res.status(404).json({ message: 'Document not found' });
+        return;
+      }
+    }
+
     // Check if resource already exists for this plan
     const existingResource = await prisma.trainingResource.findFirst({
       where: { trainingPlanId, type, refId },
@@ -674,6 +756,74 @@ export const addTrainingResource = async (req: Request, res: Response) => {
       return;
     }
     res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Mark a training resource as completed for current user (used for DOCUMENT resources on /learn)
+export const markTrainingResourceCompleted = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: req.t('UNAUTHORIZED') });
+      return;
+    }
+
+    const resourceId = parseInt(safeParamString(req.params.resourceId));
+    if (isNaN(resourceId)) {
+      res.status(400).json({ success: false, message: req.t('INVALID_ID') });
+      return;
+    }
+
+    const resource = await prisma.trainingResource.findUnique({
+      where: { id: resourceId },
+      include: {
+        trainingPlan: {
+          select: {
+            id: true,
+            trainingClassId: true,
+          },
+        },
+      },
+    });
+    if (!resource) {
+      res.status(404).json({ success: false, message: 'Training resource not found' });
+      return;
+    }
+
+    if (!resource.trainingPlan?.trainingClassId) {
+      res.status(400).json({ success: false, message: 'Training resource is not linked to any class' });
+      return;
+    }
+
+    const enrollment = await prisma.classEnrollment.findFirst({
+      where: {
+        classId: resource.trainingPlan.trainingClassId,
+        userId: req.user.id,
+      },
+      select: { id: true },
+    });
+
+    if (!enrollment) {
+      res.status(403).json({ success: false, message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    await ensureTrainingResourceProgressTable();
+
+    await prisma.$executeRawUnsafe(
+      `
+      INSERT INTO training_resource_progress (user_id, training_resource_id, completed, completed_at, updated_at)
+      VALUES ($1, $2, true, NOW(), NOW())
+      ON CONFLICT (user_id, training_resource_id)
+      DO UPDATE SET completed = true, completed_at = NOW(), updated_at = NOW()
+      `,
+      req.user.id,
+      resourceId
+    );
+
+    res.status(200).json({ success: true, message: 'Training resource marked as completed' });
+  } catch (error) {
+    console.error('Mark training resource completed error:', error);
+    res.status(500).json({ success: false, message: req.t('INTERNAL_SERVER_ERROR') });
   }
 };
 
@@ -811,7 +961,9 @@ export const getMyTrainingPlans = async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' },
     }) as any;
 
-// For each plan, get progress for each resource (course) that's a video course
+    await ensureTrainingResourceProgressTable();
+
+// For each plan, get progress for each resource
     const plansWithProgress = await Promise.all(
       trainingPlans.map(async (plan) => {
         // Get progress for each resource in the plan
@@ -853,8 +1005,137 @@ export const getMyTrainingPlans = async (req: Request, res: Response) => {
                 progressPercent: totalVideos > 0 ? Math.round((completedVideos / totalVideos) * 100) : 0,
               };
             }
+
+            if (resource.type === 'DOCUMENT' && resource.refId) {
+              const [document, completionRows] = await Promise.all([
+                prisma.document.findUnique({
+                  where: { id: resource.refId },
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                    size: true,
+                    bucket: true,
+                    path: true,
+                  },
+                }),
+                prisma.$queryRawUnsafe<Array<{ completed: boolean }>>(
+                  `
+                  SELECT completed
+                  FROM training_resource_progress
+                  WHERE user_id = $1 AND training_resource_id = $2
+                  LIMIT 1
+                  `,
+                  userId,
+                  resource.id
+                ),
+              ]);
+
+              const completed = completionRows.length > 0 && completionRows[0].completed === true;
+              const endpoint = process.env.MINIO_ENDPOINT || 'localhost';
+              const port = process.env.MINIO_PORT || '9000';
+              const url = document
+                ? `http://${endpoint}:${port}/${document.bucket}/${document.path}`
+                : null;
+
+              return {
+                ...resource,
+                document: document
+                  ? {
+                      id: document.id,
+                      name: document.name,
+                      type: document.type,
+                      size: document.size,
+                      url,
+                    }
+                  : undefined,
+                completed,
+                totalVideos: 1,
+                completedVideos: completed ? 1 : 0,
+                progressPercent: completed ? 100 : 0,
+              };
+            }
+
+            if (resource.type === 'EXAM' && resource.refId) {
+              const examSession = await prisma.examSession.findUnique({
+                where: { id: resource.refId },
+                select: {
+                  id: true,
+                  name_vi: true,
+                  name_en: true,
+                  name_zh: true,
+                  passingScore: true,
+                  durationMinutes: true,
+                  antiCheat: true,
+                  requireFullscreen: true,
+                  detectTabSwitch: true,
+                  attemptLimit: true,
+                  startAt: true,
+                  endAt: true,
+                },
+              });
+
+              let latestAttempt: any = null;
+              try {
+                const attempts = await prisma.$queryRawUnsafe<Array<any>>(
+                  `
+                  SELECT id, status, score, passed, is_fraud, cheat_warnings, submitted_at
+                  FROM exam_attempts
+                  WHERE user_id = $1 AND exam_session_id = $2
+                  ORDER BY id DESC
+                  LIMIT 1
+                  `,
+                  userId,
+                  resource.refId
+                );
+                latestAttempt = attempts[0] || null;
+              } catch {
+                latestAttempt = null;
+              }
+
+              const completed = latestAttempt
+                ? ['SUBMITTED', 'AUTO_SUBMITTED', 'FRAUD_TERMINATED'].includes(String(latestAttempt.status || ''))
+                : false;
+
+              return {
+                ...resource,
+                exam: examSession
+                  ? {
+                      id: examSession.id,
+                      name_vi: examSession.name_vi,
+                      name_en: examSession.name_en,
+                      name_zh: examSession.name_zh,
+                      passingScore: examSession.passingScore,
+                      durationMinutes: examSession.durationMinutes,
+                      antiCheat: examSession.antiCheat,
+                      requireFullscreen: examSession.requireFullscreen,
+                      detectTabSwitch: examSession.detectTabSwitch,
+                      attemptLimit: examSession.attemptLimit,
+                      startAt: examSession.startAt,
+                      endAt: examSession.endAt,
+                    }
+                  : undefined,
+                latestAttempt: latestAttempt
+                  ? {
+                      id: latestAttempt.id,
+                      status: latestAttempt.status,
+                      score: latestAttempt.score,
+                      passed: latestAttempt.passed,
+                      isFraud: latestAttempt.is_fraud,
+                      cheatWarnings: latestAttempt.cheat_warnings,
+                      submittedAt: latestAttempt.submitted_at,
+                    }
+                  : undefined,
+                completed,
+                totalVideos: 1,
+                completedVideos: completed ? 1 : 0,
+                progressPercent: completed ? 100 : 0,
+              };
+            }
+
             return {
               ...resource,
+              completed: false,
               totalVideos: 0,
               completedVideos: 0,
               progressPercent: 0,
@@ -863,9 +1144,9 @@ export const getMyTrainingPlans = async (req: Request, res: Response) => {
         );
 
 // Calculate overall progress
-        const allResourcesWithVideos = resourcesWithProgress.filter(r => r.totalVideos > 0);
-        const totalVideosAll = allResourcesWithVideos.reduce((sum, r) => sum + r.totalVideos, 0);
-        const completedVideosAll = allResourcesWithVideos.reduce((sum, r) => sum + r.completedVideos, 0);
+        const trackableResources = resourcesWithProgress.filter(r => r.totalVideos > 0);
+        const totalVideosAll = trackableResources.reduce((sum, r) => sum + r.totalVideos, 0);
+        const completedVideosAll = trackableResources.reduce((sum, r) => sum + r.completedVideos, 0);
 
         // Get the effective status based on endDate
         const effectiveStatus = getStatusBasedOnDate(plan.status, plan.endDate);
@@ -1198,6 +1479,9 @@ export const generateClassReport = async (req: Request, res: Response) => {
       return;
     }
 
+    await ensureTrainingResourceProgressTable();
+    await ensureClassReportExamAttemptsTable();
+
 // Get class with details
     const trainingClass = await prisma.trainingClass.findUnique({
       where: { id: classId },
@@ -1227,6 +1511,24 @@ export const generateClassReport = async (req: Request, res: Response) => {
             id: true,
             code: true,
             name: true,
+          },
+        },
+        trainingPlans: {
+          select: {
+            id: true,
+            title_vi: true,
+            title_en: true,
+            title_zh: true,
+            resources: {
+              select: {
+                id: true,
+                type: true,
+                refId: true,
+                title_vi: true,
+                title_en: true,
+                title_zh: true,
+              },
+            },
           },
         },
         enrollments: {
@@ -1276,10 +1578,368 @@ export const generateClassReport = async (req: Request, res: Response) => {
       return item.name_vi || '';
     };
 
+    const getLocalizedTitle = (item: any, lang: string) => {
+      if (lang === 'zh') return item.title_zh || item.title_vi || item.name_zh || item.name_vi || '';
+      if (lang === 'en') return item.title_en || item.title_vi || item.name_en || item.name_vi || '';
+      return item.title_vi || item.name_vi || item.title_en || item.name_en || '';
+    };
+
 const lang = (req.query.lang as string) || 'vi';
 
     // Type cast for Prisma nested select typing issue
     const classData = trainingClass as any;
+
+    const users = (classData.enrollments || []).map((enrollment: any) => enrollment.user);
+    const userIds: number[] = users.map((user: any) => Number(user.id));
+
+    const resources = (classData.trainingPlans || []).flatMap((plan: any) => plan.resources || []);
+    const courseResources = resources.filter((resource: any) => resource.type === 'COURSE' && resource.refId);
+    const examResources = resources.filter((resource: any) => resource.type === 'EXAM' && resource.refId);
+    const courseIds: number[] = Array.from(new Set<number>(courseResources.map((resource: any) => Number(resource.refId))));
+    const examIds: number[] = Array.from(new Set<number>(examResources.map((resource: any) => Number(resource.refId))));
+    const resourceIds: number[] = resources.map((resource: any) => Number(resource.id));
+
+    const [courses, resourceProgressRows, examAttemptRows] = await Promise.all([
+      courseIds.length > 0
+        ? prisma.course.findMany({
+            where: { id: { in: courseIds } },
+            select: {
+              id: true,
+              title_vi: true,
+              title_en: true,
+              title_zh: true,
+              lessons: {
+                select: {
+                  id: true,
+                },
+              },
+              courseVideos: {
+                select: {
+                  id: true,
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
+      userIds.length > 0 && resourceIds.length > 0
+        ? prisma.$queryRawUnsafe<Array<{ user_id: number; training_resource_id: number; completed: boolean }>>(
+            `
+            SELECT user_id, training_resource_id, completed
+            FROM training_resource_progress
+            WHERE user_id IN (${userIds.join(',')})
+              AND training_resource_id IN (${resourceIds.join(',')})
+            `
+          )
+        : Promise.resolve([]),
+      userIds.length > 0 && examIds.length > 0
+        ? prisma.$queryRawUnsafe<Array<{
+            user_id: number;
+            exam_session_id: number;
+            status: string;
+            score: number | null;
+            passed: boolean | null;
+            submitted_at: Date | null;
+          }>>(
+            `
+            SELECT user_id, exam_session_id, status, score, passed, submitted_at
+            FROM exam_attempts
+            WHERE user_id IN (${userIds.join(',')})
+              AND exam_session_id IN (${examIds.join(',')})
+            `
+          )
+        : Promise.resolve([]),
+    ]);
+
+    const lessonIds = courses.flatMap((course: any) => course.lessons.map((lesson: any) => lesson.id));
+    const progressRows = userIds.length > 0 && lessonIds.length > 0
+      ? await prisma.learningProgress.findMany({
+          where: {
+            userId: { in: userIds },
+            lessonId: { in: lessonIds },
+          },
+          select: {
+            userId: true,
+            lessonId: true,
+            completed: true,
+            watchedSeconds: true,
+            lesson: {
+              select: {
+                courseId: true,
+              },
+            },
+          },
+        })
+      : [];
+
+    const courseMeta = courses.map((course: any) => ({
+      courseId: course.id,
+      courseName: getLocalizedTitle(course, lang),
+      totalVideos: Math.max(course.lessons.length, course.courseVideos.length),
+      lessonIds: course.lessons.map((lesson: any) => lesson.id),
+      resourceIds: courseResources.filter((resource: any) => resource.refId === course.id).map((resource: any) => resource.id),
+    }));
+
+    const totalCourseCount = courseMeta.length;
+    const totalVideoCount = courseMeta.reduce((sum: number, course: any) => sum + course.totalVideos, 0);
+    const totalExamCount = examIds.length;
+
+    const resourceCompletedSet = new Set(
+      resourceProgressRows.filter((row) => row.completed).map((row) => `${row.user_id}:${row.training_resource_id}`)
+    );
+
+    const userCourseProgress = new Map<string, { completed: number; started: number; watchedSeconds: number }>();
+    progressRows.forEach((row: any) => {
+      const key = `${row.userId}:${row.lesson.courseId}`;
+      const current = userCourseProgress.get(key) || { completed: 0, started: 0, watchedSeconds: 0 };
+      current.started += 1;
+      current.watchedSeconds += row.watchedSeconds || 0;
+      if (row.completed) {
+        current.completed += 1;
+      }
+      userCourseProgress.set(key, current);
+    });
+
+    const examBestAttemptMap = new Map<string, { score: number; passed: boolean; completed: boolean }>();
+    examAttemptRows.forEach((row) => {
+      const key = `${row.user_id}:${row.exam_session_id}`;
+      const numericScore = row.score === null ? 0 : Number(row.score);
+      const completed = row.submitted_at !== null || row.status !== 'ONGOING';
+      const existing = examBestAttemptMap.get(key);
+      if (!existing || numericScore > existing.score) {
+        examBestAttemptMap.set(key, {
+          score: numericScore,
+          passed: row.passed === true,
+          completed,
+        });
+        return;
+      }
+
+      if (completed && !existing.completed) {
+        existing.completed = true;
+      }
+      if (row.passed === true) {
+        existing.passed = true;
+      }
+    });
+
+    const studentRows = users.map((user: any) => {
+      const courseProgress = courseMeta.map((course: any) => {
+        const progressKey = `${user.id}:${course.courseId}`;
+        const lessonProgress = userCourseProgress.get(progressKey) || { completed: 0, started: 0, watchedSeconds: 0 };
+        const completedByResource = course.resourceIds.some((resourceId: number) => resourceCompletedSet.has(`${user.id}:${resourceId}`));
+        const completedVideos = course.totalVideos > 0
+          ? Math.min(lessonProgress.completed, course.totalVideos)
+          : completedByResource
+            ? 1
+            : 0;
+        const progressPercent = course.totalVideos > 0
+          ? Math.round((completedVideos / course.totalVideos) * 100)
+          : completedByResource
+            ? 100
+            : 0;
+
+        return {
+          courseId: course.courseId,
+          courseName: course.courseName,
+          totalVideos: course.totalVideos,
+          completedVideos,
+          incompleteVideos: Math.max(course.totalVideos - completedVideos, 0),
+          progressPercent,
+          startedVideos: lessonProgress.started,
+          watchedSeconds: lessonProgress.watchedSeconds,
+          isCompleted: progressPercent >= 100,
+        };
+      });
+
+      let completedExamCount = 0;
+      let passedExamCount = 0;
+      let attemptedExamCount = 0;
+      let examScoreTotal = 0;
+      let examScoreItems = 0;
+
+      examIds.forEach((examId) => {
+        const attempt = examBestAttemptMap.get(`${user.id}:${examId}`);
+        if (!attempt) {
+          return;
+        }
+
+        attemptedExamCount += 1;
+        if (attempt.completed) {
+          completedExamCount += 1;
+        }
+        if (attempt.passed) {
+          passedExamCount += 1;
+        }
+        examScoreTotal += attempt.score;
+        examScoreItems += 1;
+      });
+
+      const completedCourseCount = courseProgress.filter((course: any) => course.isCompleted).length;
+      const completedVideoCount = courseProgress.reduce((sum: number, course: any) => sum + course.completedVideos, 0);
+      const startedVideoCount = courseProgress.reduce((sum: number, course: any) => sum + course.startedVideos, 0);
+      const incompleteCourseCount = Math.max(totalCourseCount - completedCourseCount, 0);
+      const incompleteVideoCount = Math.max(totalVideoCount - completedVideoCount, 0);
+      const incompleteExamCount = Math.max(totalExamCount - completedExamCount, 0);
+      const totalTrackableItems = totalVideoCount + totalExamCount;
+      const completionRate = totalTrackableItems > 0
+        ? Math.round(((completedVideoCount + completedExamCount) / totalTrackableItems) * 100)
+        : 0;
+
+      let status = 'CHUA_BAT_DAU';
+      let statusLabel = 'Chưa bắt đầu';
+
+      if (completionRate >= 100 && totalTrackableItems > 0) {
+        status = 'HOAN_THANH';
+        statusLabel = 'Hoàn thành';
+      } else if (startedVideoCount === 0 && attemptedExamCount === 0 && completedVideoCount === 0 && completedExamCount === 0) {
+        status = 'CHUA_BAT_DAU';
+        statusLabel = 'Chưa bắt đầu';
+      } else if (completionRate < 30) {
+        status = 'MOI_BAT_DAU';
+        statusLabel = 'Mới bắt đầu';
+      } else {
+        status = 'DANG_HOC';
+        statusLabel = 'Đang học';
+      }
+
+      return {
+        id: user.id,
+        usercode: user.usercode,
+        fullName: user.fullName,
+        email: user.email,
+        departmentId: user.department?.id || null,
+        department: user.department
+          ? {
+              id: user.department.id,
+              name: getLocalizedName(user.department, lang),
+              name_vi: user.department.name_vi,
+              code: user.department.code,
+            }
+          : null,
+        positionId: user.position?.id || null,
+        position: user.position
+          ? {
+              id: user.position.id,
+              name: getLocalizedName(user.position, lang),
+              name_vi: user.position.name_vi,
+              code: user.position.code,
+            }
+          : null,
+        totalCourses: totalCourseCount,
+        completedCourses: completedCourseCount,
+        incompleteCourses: incompleteCourseCount,
+        totalVideos: totalVideoCount,
+        completedVideos: completedVideoCount,
+        incompleteVideos: incompleteVideoCount,
+        totalExams: totalExamCount,
+        completedExams: completedExamCount,
+        incompleteExams: incompleteExamCount,
+        passedExams: passedExamCount,
+        attemptedExams: attemptedExamCount,
+        averageExamScore: examScoreItems > 0 ? Number((examScoreTotal / examScoreItems).toFixed(2)) : null,
+        completionRate,
+        status,
+        statusLabel,
+        courseProgress,
+      };
+    });
+
+    const averageCompletionRate = studentRows.length > 0
+      ? Number((studentRows.reduce((sum: number, student: any) => sum + student.completionRate, 0) / studentRows.length).toFixed(2))
+      : 0;
+
+    const completedUsers = studentRows.filter((student: any) => student.status === 'HOAN_THANH').length;
+    const passedExamUsers = studentRows.filter((student: any) => student.passedExams > 0).length;
+
+    const statusBuckets = [
+      { key: 'HOAN_THANH', label: 'Hoàn thành' },
+      { key: 'DANG_HOC', label: 'Đang học' },
+      { key: 'MOI_BAT_DAU', label: 'Mới bắt đầu' },
+      { key: 'CHUA_BAT_DAU', label: 'Chưa bắt đầu' },
+    ];
+
+    const statusDistribution = statusBuckets.map((bucket) => {
+      const count = studentRows.filter((student: any) => student.status === bucket.key).length;
+      const percent = studentRows.length > 0 ? Number(((count / studentRows.length) * 100).toFixed(2)) : 0;
+      return {
+        key: bucket.key,
+        label: bucket.label,
+        count,
+        percent,
+      };
+    });
+
+    const topExamScorers = studentRows
+      .filter((student: any) => student.averageExamScore !== null)
+      .sort((left: any, right: any) => (right.averageExamScore || 0) - (left.averageExamScore || 0))
+      .slice(0, 10)
+      .map((student: any, index: number) => ({
+        rank: index + 1,
+        userId: student.id,
+        usercode: student.usercode,
+        fullName: student.fullName,
+        department: student.department?.name || '-',
+        position: student.position?.name || '-',
+        averageExamScore: student.averageExamScore,
+        passedExams: student.passedExams,
+      }));
+
+    const departmentMap = new Map<string, any>();
+    studentRows.forEach((student: any) => {
+      const deptKey = student.department?.id ? String(student.department.id) : 'unknown';
+      if (!departmentMap.has(deptKey)) {
+        departmentMap.set(deptKey, {
+          departmentId: student.department?.id || null,
+          departmentName: student.department?.name || 'Chưa có phòng ban',
+          totalStudents: 0,
+          completedUsers: 0,
+          incompleteUsers: 0,
+          completedVideos: 0,
+          passedExams: 0,
+        });
+      }
+
+      const department = departmentMap.get(deptKey);
+      department.totalStudents += 1;
+      if (student.completedCourses === student.totalCourses && student.totalCourses > 0) {
+        department.completedUsers += 1;
+      } else {
+        department.incompleteUsers += 1;
+      }
+      department.completedVideos += student.completedVideos;
+      department.passedExams += student.passedExams;
+    });
+
+    const departmentProgress = Array.from(departmentMap.values());
+
+    const courseProgress = courseMeta.map((course: any) => {
+      const studentItems = studentRows.map((student: any) => {
+        const item = student.courseProgress.find((progress: any) => progress.courseId === course.courseId);
+        return {
+          userId: student.id,
+          usercode: student.usercode,
+          fullName: student.fullName,
+          department: student.department?.name || '-',
+          departmentId: student.departmentId,
+          position: student.position?.name || '-',
+          positionId: student.positionId,
+          progressPercent: item?.progressPercent || 0,
+          completedVideos: item?.completedVideos || 0,
+          totalVideos: item?.totalVideos || course.totalVideos,
+          videoStatus: `${item?.completedVideos || 0}/${item?.totalVideos || course.totalVideos} video`,
+          examStatus: `${student.completedExams}/${student.totalExams} bài thi`,
+          statusLabel: item?.isCompleted ? 'Hoàn thành' : item?.progressPercent > 0 ? 'Đang học' : 'Chưa bắt đầu',
+        };
+      });
+
+      return {
+        courseId: course.courseId,
+        courseName: course.courseName,
+        totalVideos: course.totalVideos,
+        completedStudents: studentItems.filter((student: any) => student.progressPercent >= 100).length,
+        students: studentItems,
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -1299,26 +1959,32 @@ const lang = (req.query.lang as string) || 'vi';
         } : null,
         startDate: classData.startDate,
         endDate: classData.endDate,
-        studentCount: classData.enrollments?.length || 0,
-        students: (classData.enrollments || []).map((e: any) => ({
-          id: e.user.id,
-          usercode: e.user.usercode,
-          fullName: e.user.fullName,
-          email: e.user.email,
-          department: e.user.department ? {
-            id: e.user.department.id,
-            name: getLocalizedName(e.user.department, lang),
-            code: e.user.department.code,
-          } : null,
-          position: e.user.position ? {
-            id: e.user.position.id,
-            name: getLocalizedName(e.user.position, lang),
-            code: e.user.position.code,
-          } : null,
+        studentCount: studentRows.length,
+        totalCourses: totalCourseCount,
+        totalVideos: totalVideoCount,
+        totalExams: totalExamCount,
+        trainingPlans: (classData.trainingPlans || []).map((plan: any) => ({
+          id: plan.id,
+          title: getLocalizedTitle(plan, lang),
         })),
+        summary: {
+          totalStudents: studentRows.length,
+          averageCompletionRate,
+          completedUsers,
+          passedExamUsers,
+          totalCourses: totalCourseCount,
+          totalVideos: totalVideoCount,
+          totalExams: totalExamCount,
+        },
+        statusDistribution,
+        topExamScorers,
+        departmentProgress,
+        courseProgress,
+        students: studentRows,
       },
     });
   } catch (error) {
+    console.error('generateClassReport error:', error);
     res.status(500).json({ success: false, message: req.t('INTERNAL_SERVER_ERROR') });
   }
 };

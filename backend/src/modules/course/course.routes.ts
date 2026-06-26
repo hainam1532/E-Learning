@@ -9,8 +9,32 @@ router.post("/categories", courseController.createCourseCategory);
 router.put("/categories/:id", courseController.updateCourseCategory);
 router.delete("/categories/:id", courseController.deleteCourseCategory);
 
+// Course-category relationship routes
+router.get("/categories/:categoryId/courses", courseController.getCoursesByCategory);
+router.post("/categories/:categoryId/courses", courseController.addCourseToCategory);
+router.delete("/categories/:categoryId/courses", courseController.removeCourseFromCategory);
+
+// Course Tag routes - MUST be before /:id to avoid route conflict
+router.get("/tags", courseController.getCourseTags);
+router.post("/tags", courseController.createCourseTag);
+router.put("/tags/:id", courseController.updateCourseTag);
+router.delete("/tags/:id", courseController.deleteCourseTag);
+
+// Special topic routes - MUST be before /:id to avoid route conflict
+router.get("/special-topics/home", courseController.getHomeSpecialTopics);
+router.get("/special-topics", courseController.getSpecialTopics);
+router.post("/special-topics", courseController.createSpecialTopic);
+router.put("/special-topics/reorder", courseController.reorderSpecialTopics);
+router.put("/special-topics/:id", courseController.updateSpecialTopic);
+router.delete("/special-topics/:id", courseController.deleteSpecialTopic);
+router.get("/special-topics/:topicId/courses", courseController.getCoursesBySpecialTopic);
+router.post("/special-topics/:topicId/courses", courseController.addCourseToSpecialTopic);
+router.delete("/special-topics/:topicId/courses", courseController.removeCourseFromSpecialTopic);
+router.put("/special-topics/:topicId/courses/reorder", courseController.reorderSpecialTopicCourses);
+
 // Course routes
 router.get("/", courseController.getCourses);
+router.get("/featured", courseController.getFeaturedCourses);
 router.get("/:id", courseController.getCourse);
 router.post("/", courseController.createCourse);
 router.put("/:id", courseController.updateCourse);

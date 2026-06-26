@@ -1,18 +1,26 @@
+// Set up warning suppression BEFORE importing any modules
+// This is important because warnings can be emitted during module loading
+const originalEmit = process.emit;
+(process as any).emit = function (name: string, ...args: any[]) {
+  if (name === 'warning') {
+    const warning = args[0];
+    if (warning && 
+        warning.name === 'DeprecationWarning' && 
+        warning.message && 
+        warning.message.includes('Calling client.query()')) {
+      // Suppress this specific warning - it's a known issue with Prisma/Pg adapter
+      // that will be fixed in pg@9.0
+      return true;
+    }
+  }
+  return originalEmit.apply(process, [name, ...args]);
+};
+
 import app from "./app";
 import { redisClient } from "./config/redis";
 import { prisma } from "./config/db";
 
 const PORT = 5000;
-
-// Suppress pg driver deprecation warning - this is a known issue with pg@8.x adapter
-process.on('warning', (warning: any) => {
-  if (warning.name === 'DeprecationWarning' && 
-      warning.code === 'DEP0003' &&
-      warning.message.includes('Calling client.query()')) {
-    return;
-  }
-  console.warn(warning);
-});
 
 async function main() {
   // Test Redis connection

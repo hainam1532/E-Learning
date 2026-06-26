@@ -15,6 +15,7 @@ import {
   coverMiddleware,
   addTrainingResource,
   removeTrainingResource,
+  markTrainingResourceCompleted,
   getClassStudents,
   addStudentToClass,
   removeStudentFromClass,
@@ -23,6 +24,14 @@ import {
   getMyTrainingEnrollments,
   getMyTrainingPlans,
 } from './training.controller';
+import {
+  startExamSession,
+  saveExamAnswer,
+  submitExamAttempt,
+  reportExamCheating,
+  getExamAttemptDetail,
+  getMyExamAttempts,
+} from './exam.controller';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -68,11 +77,21 @@ router.post('/plans/:id/cover', authMiddleware, coverMiddleware.single('cover'),
 router.post('/plans/:id/resources', authMiddleware, addTrainingResource);
 // Remove resource from training plan
 router.delete('/plans/:id/resources', authMiddleware, removeTrainingResource);
+// Mark resource completed for current user
+router.post('/resources/:resourceId/complete', authMiddleware, markTrainingResourceCompleted);
 
 // ============ USER TRAINING ROUTES (for regular users) ============
 // Get current user's training enrollments (classes user is enrolled in)
 router.get('/my-enrollments', authMiddleware, getMyTrainingEnrollments);
 // Get current user's training plans (plans linked to classes user is enrolled in)
 router.get('/my-plans', authMiddleware, getMyTrainingPlans);
+
+// ============ USER EXAM TAKING ROUTES ============
+router.post('/exam/sessions/:sessionId/start', authMiddleware, startExamSession);
+router.post('/exam/attempts/:attemptId/answer', authMiddleware, saveExamAnswer);
+router.post('/exam/attempts/:attemptId/submit', authMiddleware, submitExamAttempt);
+router.post('/exam/attempts/:attemptId/cheat', authMiddleware, reportExamCheating);
+router.get('/exam/attempts/:attemptId', authMiddleware, getExamAttemptDetail);
+router.get('/exam/attempts', authMiddleware, getMyExamAttempts);
 
 export default router;

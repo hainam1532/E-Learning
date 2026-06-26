@@ -3,10 +3,13 @@ import UserLayout from "../layouts/UserLayout";
 import AdminLayout from "../layouts/AdminLayout";
 import ProtectedRoute from "../components/ProtectedRoute";
 import Home from "../pages/views/Home";
+import Courses from "../pages/views/Courses";
+import Topics from "../pages/views/Topics";
 import Profile from "../pages/views/Profile";
 import Login from "../pages/views/Login";
 import Unauthorized from "../pages/views/Unauthorized";
 import CourseLearn from "../pages/views/CourseLearn";
+import ExamTaking from "../pages/views/ExamTaking";
 import Dashboard from "../pages/admin/Dashboard";
 import UserManagement from "../pages/admin/UserManagement";
 import RoleManagement from "../pages/admin/RoleManagement";
@@ -16,9 +19,18 @@ import SystemConfig from "../pages/admin/SystemConfig";
 import VideoLibrary from "../pages/admin/VideoLibrary";
 import AcademyManagement from "../pages/admin/AcademyManagement";
 import CourseManagement from "../pages/admin/CourseManagement";
+import CourseTagManagement from "../pages/admin/CourseTagManagement";
+import CourseCategoryManagement from "../pages/admin/CourseCategoryManagement";
+import SpecialTopicManagement from "../pages/admin/SpecialTopicManagement";
 import TrainingPlanManagement from "../pages/admin/TrainingPlanManagement";
 import TrainingClassManagement from "../pages/admin/TrainingClassManagement";
 import LecturerManagement from "../pages/admin/LecturerManagement";
+import TrainingPathManagement from "../pages/admin/TrainingPathManagement";
+import DocumentLibrary from "../pages/admin/DocumentLibrary";
+import QuestionBankManagement from "../pages/admin/QuestionBankManagement";
+import ExamPaperManagement from "../pages/admin/ExamPaperManagement";
+import ExamSessionManagement from "../pages/admin/ExamSessionManagement";
+import ReportsOverview from "../pages/admin/ReportsOverview";
 
 
 // Placeholder components for new menu items
@@ -30,7 +42,7 @@ const PlaceholderPage = ({ title }: { title: string }) => (
 );
 
 export const router = createBrowserRouter([
-  // Giao diện người dùng / học viên (Views)
+// Giao diện người dùng / học viên (Views)
   {
     path: "/",
     element: <UserLayout />,
@@ -38,6 +50,14 @@ export const router = createBrowserRouter([
       {
         path: "",
         element: <Home />,
+      },
+      {
+        path: "courses",
+        element: <Courses />,
+      },
+      {
+        path: "topics",
+        element: <Topics />,
       },
       // Profile - Yêu cầu đăng nhập
       {
@@ -56,24 +76,35 @@ export const router = createBrowserRouter([
         path: "unauthorized",
         element: <Unauthorized />,
       },
-      // Course Learning Page - Yêu cầu đăng nhập
-      {
-        path: "learn/:courseId",
-        element: (
-          <ProtectedRoute>
-            <CourseLearn />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "learn/:courseId/:videoId",
-        element: (
-          <ProtectedRoute>
-            <CourseLearn />
-          </ProtectedRoute>
-        ),
-      },
     ],
+  },
+
+// Course Learning - Standalone (no UserLayout)
+  {
+    path: "/learn/:courseId",
+    element: (
+      <ProtectedRoute>
+        <CourseLearn />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/learn/:courseId/:videoId",
+    element: (
+      <ProtectedRoute>
+        <CourseLearn />
+      </ProtectedRoute>
+    ),
+  },
+
+  // Exam Taking - Standalone (no UserLayout)
+  {
+    path: "/exam/:sessionId",
+    element: (
+      <ProtectedRoute>
+        <ExamTaking />
+      </ProtectedRoute>
+    ),
   },
 
   // Giao diện quản trị (Admin) - Yêu cầu vai trò 'admin'
@@ -123,26 +154,30 @@ export const router = createBrowserRouter([
             path: "courses/videos",
             element: <VideoLibrary />,
           },
-          {
+{
             path: "courses/cards",
-            element: <PlaceholderPage title="Thẻ khóa học" />,
+            element: <CourseTagManagement />,
           },
           {
             path: "courses/categories",
-            element: <PlaceholderPage title="Danh mục khóa học" />,
+            element: <CourseCategoryManagement />,
           },
           {
             path: "courses/special-topics",
-            element: <PlaceholderPage title="Chủ đề đặc biệt" />,
+            element: <SpecialTopicManagement />,
           },
           // Quản lý đào tạo
           {
             path: "training/paths",
-            element: <PlaceholderPage title="Lộ trình học tập" />,
+            element: <TrainingPathManagement />,
+          },
+{
+            path: "training/documents",
+            element: <DocumentLibrary />,
           },
           {
-            path: "training/documents",
-            element: <PlaceholderPage title="Thư viện tài liệu" />,
+            path: "document-library",
+            element: <DocumentLibrary />,
           },
           {
             path: "training/locations",
@@ -160,23 +195,23 @@ export const router = createBrowserRouter([
             path: "training/instructors",
             element: <LecturerManagement />,
           },
-          // Quản lý kỳ thi
+// Quản lý kỳ thi
           {
             path: "exam/questions",
-            element: <PlaceholderPage title="Ngân hàng câu hỏi" />,
+            element: <QuestionBankManagement />,
           },
           {
             path: "exam/papers",
-            element: <PlaceholderPage title="Quản lý đề thi" />,
+            element: <ExamPaperManagement />,
           },
           {
             path: "exam/sessions",
-            element: <PlaceholderPage title="Quản lý kỳ thi" />,
+            element: <ExamSessionManagement />,
           },
           // Báo cáo dữ liệu
           {
             path: "reports/overview",
-            element: <PlaceholderPage title="Báo cáo tổng quan học tập" />,
+            element: <ReportsOverview />,
           },
           {
             path: "reports/time",

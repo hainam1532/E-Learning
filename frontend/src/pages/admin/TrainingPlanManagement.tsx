@@ -9,7 +9,6 @@ import {
   Popconfirm,
   Space,
   Tag,
-  Switch,
   Select,
   Tabs,
   Upload,
@@ -17,7 +16,6 @@ import {
   DatePicker,
   Modal,
   Card,
-  Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -30,9 +28,7 @@ import {
   ProjectOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
-  CalendarOutlined,
 } from '@ant-design/icons';
-import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import {
   getTrainingPlans,
@@ -46,20 +42,21 @@ import {
   type TrainingPlan,
   type TrainingClass,
   type TrainingResource,
-  type TrainingResourceType,
 } from '../../services/training';
 import { getAcademies, getCourses, type Course, type Academy } from '../../services/course';
+import { getDocuments, type Document } from '../../services/document';
+import { authGet } from '../../services/auth/auth.get';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
 
 export default function TrainingPlanManagement() {
-  const { t } = useTranslation();
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
   const [academies, setAcademies] = useState<Academy[]>([]);
   const [classes, setClasses] = useState<TrainingClass[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [examSessions, setExamSessions] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -78,30 +75,35 @@ export default function TrainingPlanManagement() {
   const [draftResources, setDraftResources] = useState<Partial<TrainingResource>[]>([]);
   const [deletedResourceIds, setDeletedResourceIds] = useState<number[]>([]);
 
-  // Modals for adding resources
+// Modals for adding resources
   const [courseModalOpen, setCourseModalOpen] = useState(false);
   const [examModalOpen, setExamModalOpen] = useState(false);
-  const [docModalOpen, setDocModalOpen] = useState(false);
+  const [documentListOpen, setDocumentListOpen] = useState(false);
+  const [selectedExamSessionId, setSelectedExamSessionId] = useState<number | undefined>(undefined);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
 
   // Forms
   const [form] = Form.useForm();
-  const [resourceForm] = Form.useForm();
+  const selectedPlanAcademyId = Form.useWatch('academyId', form);
 
   // Fetch initial data with defensive initialization to prevent .map() undefined errors
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [plansData, academiesData, classesData, coursesData] = await Promise.all([
+      const [plansData, academiesData, classesData, coursesData, examSessionsRes] = await Promise.all([
         getTrainingPlans(filterAcademyId, filterSearch || undefined),
         getAcademies(),
         getTrainingClasses(),
         getCourses(),
+        authGet.getExamSessions(filterAcademyId),
       ]);
       // Ensure all arrays are initialized properly to prevent .map() errors
       setPlans(plansData || []);
       setAcademies(academiesData || []);
       setClasses(classesData || []);
       setCourses(coursesData || []);
+      setExamSessions(examSessionsRes?.data?.sessions || []);
     } catch (error: any) {
       message.error(error?.response?.data?.message || 'Không thể tải dữ liệu kế hoạch đào tạo');
       // Initialize with empty arrays on error
@@ -109,6 +111,7 @@ export default function TrainingPlanManagement() {
       setAcademies([]);
       setClasses([]);
       setCourses([]);
+      setExamSessions([]);
     } finally {
       setLoading(false);
     }
@@ -134,6 +137,7 @@ export default function TrainingPlanManagement() {
     setCoverFileList([]);
     setSelectedClassId(undefined);
     setDraftResources([]);
+    setSelectedExamSessionId(undefined);
     setDeletedResourceIds([]);
     setActiveTab('basic');
     form.resetFields();
@@ -162,6 +166,7 @@ name: 'Current Cover',
     // Ensure resources is always an array to prevent .map() undefined errors
     setDraftResources(Array.isArray(record.resources) ? record.resources : []);
     setDeletedResourceIds([]);
+    setSelectedExamSessionId(undefined);
     setActiveTab('basic');
 
     form.resetFields();
@@ -303,20 +308,68 @@ name: 'Current Cover',
     setCourseModalOpen(false);
   };
 
-  const handleAddManualResource = (type: TrainingResourceType, values: any) => {
-    const refId = Math.floor(Math.random() * 1000000); // Random mock reference ID since tables don't exist
+  const handleAddExamResource = () => {
+    if (!selectedExamSessionId) {
+      message.warning('Vui lòng chọn kỳ thi');
+      return;
+    }
+
+    const session = examSessions.find((item) => item.id === selectedExamSessionId);
+    if (!session) {
+      message.warning('Không tìm thấy kỳ thi đã chọn');
+      return;
+    }
+
+    if (draftResources.some((resource) => resource.type === 'EXAM' && resource.refId === selectedExamSessionId)) {
+      message.warning('Kỳ thi này đã có trong danh sách');
+      return;
+    }
+
     const newResource: Partial<TrainingResource> = {
-      type,
-      refId,
-      title_vi: values.title_vi,
-      title_en: values.title_en,
-      title_zh: values.title_zh,
+      type: 'EXAM',
+      refId: selectedExamSessionId,
+      title_vi: session.name_vi || '',
+      title_en: session.name_en || '',
+      title_zh: session.name_zh || '',
     };
 
     setDraftResources([...draftResources, newResource]);
-    if (type === 'EXAM') setExamModalOpen(false);
-    if (type === 'DOCUMENT') setDocModalOpen(false);
-    resourceForm.resetFields();
+    setSelectedExamSessionId(undefined);
+    setExamModalOpen(false);
+  };
+
+  // Handle opening document selection modal
+  const handleOpenDocumentList = async () => {
+    setDocumentListOpen(true);
+    setDocumentsLoading(true);
+    try {
+      const docs = await getDocuments();
+      setDocuments(docs || []);
+    } catch (error: any) {
+      message.error('Không thể tải danh sách tài liệu');
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  // Handle adding document from library as resource
+  const handleAddDocumentResource = (doc: Document) => {
+    if (draftResources.some((r) => r.type === 'DOCUMENT' && r.refId === doc.id)) {
+      message.warning('Tài liệu này đã có trong danh sách');
+      return;
+    }
+
+    const newResource: Partial<TrainingResource> = {
+      type: 'DOCUMENT',
+      refId: doc.id,
+      title_vi: doc.name || '',
+      title_en: doc.name || '',
+      title_zh: doc.name || '',
+    };
+
+    setDraftResources([...draftResources, newResource]);
+    setDocumentListOpen(false);
+    message.success('Đã thêm tài liệu vào kế hoạch');
   };
 
   const handleRemoveResource = (index: number) => {
@@ -727,11 +780,10 @@ name: 'Current Cover',
                       >
                         Thêm kỳ thi
                       </Button>
-                      <Button
+<Button
                         type="primary"
                         icon={<FileTextOutlined />}
-                        disabled={!selectedClassId}
-                        onClick={() => setDocModalOpen(true)}
+                        onClick={handleOpenDocumentList}
                         className="bg-orange-600 hover:bg-orange-700 border-none"
                       >
                         Thêm tài liệu
@@ -849,72 +901,82 @@ name: 'Current Cover',
 
       {/* Add Exam Modal */}
       <Modal
-        title="Thêm kỳ thi mới vào kế hoạch"
+        title="Chọn kỳ thi đã tạo"
         open={examModalOpen}
-        onCancel={() => setExamModalOpen(false)}
+        onCancel={() => {
+          setExamModalOpen(false);
+          setSelectedExamSessionId(undefined);
+        }}
         footer={null}
       >
-        <Form
-          form={resourceForm}
-          layout="vertical"
-          onFinish={(values) => handleAddManualResource('EXAM', values)}
-          className="mt-4"
-        >
-          <Form.Item
-            name="title_vi"
-            label="Tên kỳ thi (Tiếng Việt)"
-            rules={[{ required: true, message: 'Nhập tên kỳ thi tiếng Việt' }]}
-          >
-            <Input placeholder="Ví dụ: Thi trắc nghiệm cuối kỳ hội nhập" />
-          </Form.Item>
-          <Form.Item name="title_en" label="Tên kỳ thi (English)">
-            <Input placeholder="Example: Integration Final Exam" />
-          </Form.Item>
-          <Form.Item name="title_zh" label="Tên kỳ thi (中文)">
-            <Input placeholder="例如: 入职培训期末考试" />
-          </Form.Item>
+        <div className="mt-4 space-y-3">
+          <Select
+            showSearch
+            allowClear
+            value={selectedExamSessionId}
+            onChange={setSelectedExamSessionId}
+            placeholder="Chọn kỳ thi từ Quản lý kỳ thi"
+            style={{ width: '100%' }}
+            optionFilterProp="label"
+            options={examSessions
+              .filter((session) => !selectedPlanAcademyId || session.academyId === selectedPlanAcademyId)
+              .map((session) => ({
+                value: session.id,
+                label: `${session.name_vi || session.name_en || session.name_zh || `Ky thi #${session.id}`} - ${dayjs(session.startAt).format('DD/MM/YYYY HH:mm')}`,
+              }))}
+          />
           <div className="flex justify-end gap-2 mt-4">
             <Button onClick={() => setExamModalOpen(false)}>Hủy</Button>
-            <Button type="primary" htmlType="submit" className="bg-purple-600 hover:bg-purple-700 border-none">
+            <Button type="primary" onClick={handleAddExamResource} className="bg-purple-600 hover:bg-purple-700 border-none">
               Thêm kỳ thi
             </Button>
           </div>
-        </Form>
+        </div>
       </Modal>
 
-      {/* Add Document Modal */}
+      {/* Select Document from Library Modal */}
       <Modal
-        title="Thêm tài liệu học tập mới"
-        open={docModalOpen}
-        onCancel={() => setDocModalOpen(false)}
+        title="Chọn tài liệu từ thư viện"
+        open={documentListOpen}
+        onCancel={() => setDocumentListOpen(false)}
         footer={null}
+        width={600}
       >
-        <Form
-          form={resourceForm}
-          layout="vertical"
-          onFinish={(values) => handleAddManualResource('DOCUMENT', values)}
-          className="mt-4"
-        >
-          <Form.Item
-            name="title_vi"
-            label="Tên tài liệu (Tiếng Việt)"
-            rules={[{ required: true, message: 'Nhập tên tài liệu tiếng Việt' }]}
-          >
-            <Input placeholder="Ví dụ: Sách hướng dẫn quy định nhân sự" />
-          </Form.Item>
-          <Form.Item name="title_en" label="Tên tài liệu (English)">
-            <Input placeholder="Example: Employee Handbook & Regulations" />
-          </Form.Item>
-          <Form.Item name="title_zh" label="Tên tài liệu (中文)">
-            <Input placeholder="例如: 员工手册及规章制度" />
-          </Form.Item>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button onClick={() => setDocModalOpen(false)}>Hủy</Button>
-            <Button type="primary" htmlType="submit" className="bg-orange-600 hover:bg-orange-700 border-none">
-              Thêm tài liệu
-            </Button>
-          </div>
-        </Form>
+        <div className="max-h-96 overflow-y-auto space-y-2 mt-4">
+          {documentsLoading ? (
+            <div className="text-center py-8 text-slate-400">Đang tải...</div>
+          ) : documents.length > 0 ? (
+            documents.map((doc) => (
+              <Card
+                key={doc.id}
+                size="small"
+                className="hover:border-orange-500 cursor-pointer transition-colors"
+                onClick={() => handleAddDocumentResource(doc)}
+              >
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <FileTextOutlined className="text-orange-500" />
+                    <div>
+                      <span className="font-semibold block text-slate-800">
+                        {doc.name}
+                      </span>
+                      <Text type="secondary" className="text-xs">
+                        {doc.type?.toUpperCase()} - {(doc.size / 1024).toFixed(1)} KB
+                      </Text>
+                    </div>
+                  </div>
+                  <Button type="primary" size="small" className="bg-orange-600 hover:bg-orange-700 border-none">
+                    Chọn
+                  </Button>
+                </div>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center py-8 text-slate-400">
+              Chưa có tài liệu nào. Hãy upload tài liệu mới trước.
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   );

@@ -20,7 +20,27 @@
     "refresh": "Refresh",
     "yes": "Yes",
     "no": "No",
-    "search": "Search"
+    "search": "Search",
+    "required": "Please fill in required fields",
+    "error": "Something went wrong",
+    "success": "Success",
+    "name": "Name",
+    "code": "Code",
+    "description": "Description",
+    "noData": "No data",
+    "addSubCategory": "Add Sub-category",
+    "subCategories": "Sub-categories",
+    "editCategory": "Edit Category",
+    "editSubCategory": "Edit Sub-category",
+    "parentCategory": "Parent Category",
+    "selectParent": "Select parent category",
+    "coursesInCategory": "Courses In Category",
+    "selectCategoryToView": "Select a category to view details",
+    "addCourse": "Add Course",
+    "selectCourse": "Select course",
+    "confirmRemove": "Are you sure you want to remove this course?",
+    "remove": "Remove",
+    "selectAcademyFirst": "Please select an academy first"
   },
   "home": {
     "heroTitle": "E-Learning Platform",
@@ -220,6 +240,48 @@
     "reportsOverview": "Learning Overview Report",
     "reportsTime": "Learning Time Report"
   },
+"reportsOverview": {
+    "title": "Learning Overview Report",
+    "subtitle": "Summarize learning progress by staff and exam outcomes",
+    "tableTitle": "Details by Staff",
+    "employees": "staff",
+    "clickToSort": "click headers to sort",
+    "analyticsBadge": "LEARNING ANALYTICS",
+    "liveDataLabel": "Updated from live data",
+    "loadDepartmentsFailed": "Failed to load departments",
+    "loadReportFailed": "Failed to load overview report",
+    "exportSuccess": "Excel exported successfully",
+    "exportFailed": "Excel export failed",
+    "filters": {
+      "usercode": "Employee Code",
+      "usercodePlaceholder": "Enter employee code",
+      "department": "Department",
+      "departmentPlaceholder": "Select department"
+    },
+    "actions": {
+      "filter": "Filter",
+      "reset": "Reset",
+      "exportExcel": "Export Excel"
+    },
+"cards": {
+      "totalLearners": "Total Learners",
+      "totalStudyHours": "Study Time (hours)",
+      "totalCompletedCourses": "Completed Courses",
+      "totalPassedExams": "Passed Exams"
+    },
+    "tableTitle": "Details by Staff",
+    "employees": "staff",
+    "clickToSort": "click header to sort",
+    "columns": {
+      "usercode": "Employee Code",
+      "fullName": "Name",
+      "department": "Department",
+      "position": "Position",
+      "studyHours": "Study Hours (hours)",
+      "completedCourses": "Completed Courses",
+      "passedExams": "Passed Exams"
+    }
+  },
 "video": {
     "pleaseSelectVideo": "Please select a video file",
     "library": "Video Library",
@@ -259,7 +321,7 @@
     "deleteFailed": "Failed to delete video",
     "queueFailed": "Failed to queue processing"
   },
-  "lecturer": {
+"lecturer": {
     "management": "Lecturer Management",
     "id": "ID",
     "code": "Lecturer Code",
@@ -286,5 +348,20 @@
     "namePlaceholder": "Enter lecturer name",
     "addressPlaceholder": "Enter address",
     "search": "Search"
+  },
+  "courseTag": {
+    "management": "Course Tag Management",
+    "subtitle": "Add, edit, delete tags to categorize courses.",
+    "nameVi": "Name (Vietnamese)",
+    "nameEn": "Name (English)",
+    "nameZh": "Name (Chinese)",
+    "createdAt": "Created At",
+    "add": "Add Tag",
+    "addNew": "Add New Tag",
+    "edit": "Edit Tag",
+    "confirmDelete": "Are you sure you want to delete this tag?",
+    "deleteSuccess": "Tag deleted successfully",
+    "createSuccess": "Tag created successfully",
+    "updateSuccess": "Tag updated successfully"
   }
 }

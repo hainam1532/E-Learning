@@ -20,7 +20,27 @@
     "refresh": "刷新",
     "yes": "是",
     "no": "否",
-    "search": "搜索"
+    "search": "搜索",
+    "required": "请填写必填项",
+    "error": "发生错误",
+    "success": "成功",
+    "name": "名称",
+    "code": "代码",
+    "description": "描述",
+    "noData": "暂无数据",
+    "addSubCategory": "新增子分类",
+    "subCategories": "子分类",
+    "editCategory": "编辑分类",
+    "editSubCategory": "编辑子分类",
+    "parentCategory": "父分类",
+    "selectParent": "选择父分类",
+    "coursesInCategory": "分类内课程",
+    "selectCategoryToView": "请选择分类以查看详情",
+    "addCourse": "添加课程",
+    "selectCourse": "选择课程",
+    "confirmRemove": "确认移除此课程吗？",
+    "remove": "移除",
+    "selectAcademyFirst": "请先选择学院"
   },
   "home": {
     "heroTitle": "学习平台",
@@ -220,6 +240,48 @@
     "reportsOverview": "学习概览报表",
     "reportsTime": "学习时间报表"
   },
+"reportsOverview": {
+    "title": "学习概览报表",
+    "subtitle": "按员工汇总学习进度与考试结果",
+    "tableTitle": "按员工明细",
+    "employees": "员工",
+    "clickToSort": "点击标题排序",
+    "analyticsBadge": "学习分析",
+    "liveDataLabel": "基于实时数据更新",
+    "loadDepartmentsFailed": "无法加载部门列表",
+    "loadReportFailed": "无法加载概览报表",
+    "exportSuccess": "Excel 导出成功",
+    "exportFailed": "Excel 导出失败",
+    "filters": {
+      "usercode": "工号",
+      "usercodePlaceholder": "输入工号",
+      "department": "部门",
+      "departmentPlaceholder": "选择部门"
+    },
+    "actions": {
+      "filter": "筛选",
+      "reset": "重置",
+      "exportExcel": "导出 Excel"
+    },
+"cards": {
+      "totalLearners": "总学员数",
+      "totalStudyHours": "学习时长（小时）",
+      "totalCompletedCourses": "课程数量",
+      "totalPassedExams": "通过考试数"
+    },
+    "tableTitle": "按员工明细",
+    "employees": "员工",
+    "clickToSort": "点击标题排序",
+    "columns": {
+      "usercode": "工号",
+      "fullName": "姓名",
+      "department": "部门",
+      "position": "职位",
+      "studyHours": "已学习时长（小时）",
+      "completedCourses": "课程数量",
+      "passedExams": "通过考试数"
+    }
+  },
 "video": {
     "pleaseSelectVideo": "请选择视频文件",
     "library": "视频库",
@@ -259,7 +321,7 @@
     "deleteFailed": "无法删除视频",
 "queueFailed": "无法将作业加入队列"
   },
-  "lecturer": {
+"lecturer": {
     "management": "讲师管理",
     "id": "ID",
     "code": "讲师代码",
@@ -286,5 +348,20 @@
     "namePlaceholder": "输入讲师姓名",
     "addressPlaceholder": "输入地址",
     "search": "搜索"
+  },
+  "courseTag": {
+    "management": "课程标签管理",
+    "subtitle": "添加、编辑、删除标签以分类课程。",
+    "nameVi": "名称 (越南语)",
+    "nameEn": "名称 (英语)",
+    "nameZh": "名称 (中文)",
+    "createdAt": "创建时间",
+    "add": "添加标签",
+    "addNew": "添加新标签",
+    "edit": "编辑标签",
+    "confirmDelete": "确定要删除此标签吗？",
+    "deleteSuccess": "标签删除成功",
+    "createSuccess": "标签创建成功",
+    "updateSuccess": "标签更新成功"
   }
 }

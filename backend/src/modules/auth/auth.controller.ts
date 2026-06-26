@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { prisma } from '../../config/db';
 import { redisClient } from '../../config/redis';
 
@@ -424,6 +425,291 @@ const safeBodyString = (val: any): string | undefined => {
 const safeParamString = (val: string | string[] | undefined): string => {
   if (!val) return '';
   return Array.isArray(val) ? val[0] : val;
+};
+
+type LearningOverviewRow = {
+  userId: number;
+  usercode: string;
+  fullName: string;
+  department: string;
+  position: string;
+  studyHours: number;
+  completedCourses: number;
+  passedExams: number;
+};
+
+const ensureReportExamAttemptsTable = async () => {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS exam_attempts (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      exam_session_id INTEGER NOT NULL REFERENCES exam_sessions(id) ON DELETE CASCADE,
+      training_plan_id INTEGER REFERENCES training_plans(id) ON DELETE SET NULL,
+      status VARCHAR(32) NOT NULL DEFAULT 'ONGOING',
+      started_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      submitted_at TIMESTAMP,
+      score NUMERIC(5,2),
+      passed BOOLEAN,
+      total_questions INTEGER NOT NULL DEFAULT 0,
+      correct_count INTEGER NOT NULL DEFAULT 0,
+      wrong_count INTEGER NOT NULL DEFAULT 0,
+      unanswered_count INTEGER NOT NULL DEFAULT 0,
+      cheat_warnings INTEGER NOT NULL DEFAULT 0,
+      is_fraud BOOLEAN NOT NULL DEFAULT false,
+      time_spent_seconds INTEGER NOT NULL DEFAULT 0,
+      question_order JSONB NOT NULL DEFAULT '[]'::jsonb,
+      answers JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+};
+
+const buildLearningOverviewData = async (filters: { usercode?: string; departmentId?: number }) => {
+  const users = await prisma.user.findMany({
+    where: {
+      ...(filters.usercode
+        ? {
+            usercode: {
+              contains: filters.usercode,
+              mode: 'insensitive',
+            },
+          }
+        : {}),
+      ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
+    },
+    select: {
+      id: true,
+      usercode: true,
+      fullName: true,
+      department: {
+        select: {
+          name_vi: true,
+          code: true,
+        },
+      },
+      position: {
+        select: {
+          name_vi: true,
+          code: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (users.length === 0) {
+    return {
+      summary: {
+        totalLearners: 0,
+        totalStudyHours: 0,
+        totalCompletedCourses: 0,
+        totalPassedExams: 0,
+      },
+      rows: [] as LearningOverviewRow[],
+    };
+  }
+
+  const userIds = users.map((user) => user.id);
+
+  const [allLessons, progressRows] = await Promise.all([
+    prisma.lesson.findMany({
+      select: {
+        id: true,
+        courseId: true,
+      },
+    }),
+    prisma.learningProgress.findMany({
+      where: {
+        userId: { in: userIds },
+      },
+      select: {
+        userId: true,
+        completed: true,
+        watchedSeconds: true,
+        lesson: {
+          select: {
+            courseId: true,
+            video: {
+              select: {
+                duration: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const totalLessonsByCourse = new Map<number, number>();
+  allLessons.forEach((lesson) => {
+    const current = totalLessonsByCourse.get(lesson.courseId) || 0;
+    totalLessonsByCourse.set(lesson.courseId, current + 1);
+  });
+
+  const completedLessonsByUserCourse = new Map<string, number>();
+  const watchedSecondsByUser = new Map<number, number>();
+
+  progressRows.forEach((row) => {
+    const duration = row.lesson.video?.duration;
+    const rawWatchedSeconds = Number(row.watchedSeconds || 0);
+    const safeWatchedSeconds = duration && duration > 0
+      ? Math.max(0, Math.min(rawWatchedSeconds, duration))
+      : Math.max(0, rawWatchedSeconds);
+
+    watchedSecondsByUser.set(row.userId, (watchedSecondsByUser.get(row.userId) || 0) + safeWatchedSeconds);
+
+    if (!row.completed) {
+      return;
+    }
+
+    const courseKey = `${row.userId}:${row.lesson.courseId}`;
+    completedLessonsByUserCourse.set(courseKey, (completedLessonsByUserCourse.get(courseKey) || 0) + 1);
+  });
+
+  await ensureReportExamAttemptsTable();
+
+  const examAttempts = await prisma.$queryRawUnsafe<Array<{ user_id: number; exam_session_id: number }>>(
+    `
+      SELECT DISTINCT user_id, exam_session_id
+      FROM exam_attempts
+      WHERE user_id IN (${userIds.join(',')})
+        AND passed = true
+        AND status <> 'ONGOING'
+    `
+  );
+
+  const passedExamsByUser = new Map<number, number>();
+  examAttempts.forEach((attempt) => {
+    passedExamsByUser.set(attempt.user_id, (passedExamsByUser.get(attempt.user_id) || 0) + 1);
+  });
+
+  const rows: LearningOverviewRow[] = users.map((user) => {
+    let completedCourses = 0;
+
+    totalLessonsByCourse.forEach((totalLessons, courseId) => {
+      if (totalLessons <= 0) return;
+      const completedLessons = completedLessonsByUserCourse.get(`${user.id}:${courseId}`) || 0;
+      if (completedLessons >= totalLessons) {
+        completedCourses += 1;
+      }
+    });
+
+    const studyHours = Number(((watchedSecondsByUser.get(user.id) || 0) / 3600).toFixed(2));
+
+    return {
+      userId: user.id,
+      usercode: user.usercode,
+      fullName: user.fullName || '',
+      department: user.department?.name_vi || user.department?.code || '-',
+      position: user.position?.name_vi || user.position?.code || '-',
+      studyHours,
+      completedCourses,
+      passedExams: passedExamsByUser.get(user.id) || 0,
+    };
+  });
+
+  const summary = {
+    totalLearners: rows.length,
+    totalStudyHours: Number(rows.reduce((sum, row) => sum + row.studyHours, 0).toFixed(2)),
+    totalCompletedCourses: rows.reduce((sum, row) => sum + row.completedCourses, 0,
+    ),
+    totalPassedExams: rows.reduce((sum, row) => sum + row.passedExams, 0),
+  };
+
+  return {
+    summary,
+    rows,
+  };
+};
+
+export const getLearningOverviewReport = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const usercode = safeParamString(req.query.usercode as string | string[] | undefined).trim();
+    const departmentIdRaw = safeParamString(req.query.departmentId as string | string[] | undefined).trim();
+    const departmentId = departmentIdRaw ? parseInt(departmentIdRaw, 10) : undefined;
+
+    const reportData = await buildLearningOverviewData({
+      usercode: usercode || undefined,
+      departmentId: departmentId && !isNaN(departmentId) ? departmentId : undefined,
+    });
+
+    res.status(200).json(reportData);
+  } catch (error) {
+    console.error('getLearningOverviewReport error:', error);
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+export const exportLearningOverviewReportExcel = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const usercode = safeParamString(req.query.usercode as string | string[] | undefined).trim();
+    const departmentIdRaw = safeParamString(req.query.departmentId as string | string[] | undefined).trim();
+    const departmentId = departmentIdRaw ? parseInt(departmentIdRaw, 10) : undefined;
+
+    const reportData = await buildLearningOverviewData({
+      usercode: usercode || undefined,
+      departmentId: departmentId && !isNaN(departmentId) ? departmentId : undefined,
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    const summarySheet = workbook.addWorksheet('Tổng quan');
+    const detailSheet = workbook.addWorksheet('Chi tiết');
+
+    summarySheet.columns = [
+      { header: 'Chỉ số', key: 'metric', width: 30 },
+      { header: 'Giá trị', key: 'value', width: 20 },
+    ];
+
+    summarySheet.addRows([
+      { metric: 'Tổng số học viên', value: reportData.summary.totalLearners },
+      { metric: 'Thời gian học (giờ)', value: reportData.summary.totalStudyHours },
+      { metric: 'Số lượng khóa học', value: reportData.summary.totalCompletedCourses },
+      { metric: 'Số lượng thi đạt', value: reportData.summary.totalPassedExams },
+    ]);
+
+    detailSheet.columns = [
+      { header: 'Mã số', key: 'usercode', width: 18 },
+      { header: 'Tên', key: 'fullName', width: 28 },
+      { header: 'Phòng ban', key: 'department', width: 24 },
+      { header: 'Chức vụ', key: 'position', width: 24 },
+      { header: 'Số giờ đã học', key: 'studyHours', width: 18 },
+      { header: 'Số lượng khóa học', key: 'completedCourses', width: 14 },
+      { header: 'Số lượng thi đạt', key: 'passedExams', width: 12 },
+    ];
+
+    detailSheet.addRows(
+      reportData.rows.map((row) => ({
+        usercode: row.usercode,
+        fullName: row.fullName,
+        department: row.department,
+        position: row.position,
+        studyHours: row.studyHours,
+        completedCourses: row.completedCourses,
+        passedExams: row.passedExams,
+      }))
+    );
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const fileName = `learning-overview-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+    res.send(Buffer.from(buffer));
+  } catch (error) {
+    console.error('exportLearningOverviewReportExcel error:', error);
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
 };
 
 // Create new user (Admin only)
@@ -1383,6 +1669,591 @@ export const deleteLecturer = async (req: Request, res: Response) => {
     await prisma.lecturer.delete({ where: { id } });
 
     res.status(200).json({ message: 'Lecturer deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// ============ QUESTION BANK MANAGEMENT ============
+
+// Helper to get string value from any cell
+const getCellValue = (val: any): string => {
+  if (!val) return '';
+  if (typeof val === 'string') return val.trim();
+  if (Array.isArray(val)) return String(val[0] || '').trim();
+  return String(val).trim();
+};
+
+const normalizeHeaderKey = (key: string): string =>
+  key
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+
+const getRowValue = (row: Record<string, any>, candidateKeys: string[]): string => {
+  const normalizedMap = new Map<string, any>();
+
+  Object.keys(row).forEach((k) => {
+    normalizedMap.set(normalizeHeaderKey(k), row[k]);
+  });
+
+  for (const key of candidateKeys) {
+    const value = normalizedMap.get(normalizeHeaderKey(key));
+    const normalizedValue = getCellValue(value);
+    if (normalizedValue) {
+      return normalizedValue;
+    }
+  }
+
+  return '';
+};
+
+// Get all question categories
+export const getQuestionCategories = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const { academyId, search } = req.query;
+
+    // Build filter
+    const where: any = {};
+    if (academyId) {
+      where.academyId = parseInt(String(academyId));
+    }
+    if (search) {
+      where.name_vi = { contains: String(search), mode: 'insensitive' };
+    }
+
+    const categories = await prisma.questionCategory.findMany({
+      where,
+      include: {
+        academy: {
+          select: { id: true, name_vi: true, name_en: true, name_zh: true, code: true },
+        },
+        _count: { select: { questions: true } },
+      },
+      orderBy: { id: 'desc' },
+    });
+
+    res.status(200).json({ categories });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Create question category
+export const createQuestionCategory = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const name_vi = getBodyString(req.body.name_vi);
+    const name_en = getBodyString(req.body.name_en);
+    const name_zh = getBodyString(req.body.name_zh);
+    const description = getBodyString(req.body.description);
+    const academyId = req.body.academyId ? parseInt(String(req.body.academyId)) : null;
+
+    if (!name_vi || !academyId) {
+      res.status(400).json({ message: 'name_vi and academyId are required' });
+      return;
+    }
+
+    // Check if academy exists
+    const academy = await prisma.academy.findUnique({ where: { id: academyId } });
+    if (!academy) {
+      res.status(404).json({ message: 'Academy not found' });
+      return;
+    }
+
+    const category = await prisma.questionCategory.create({
+      data: { name_vi, name_en, name_zh, description, academyId },
+    });
+
+    res.status(201).json({ message: 'Category created successfully', category });
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      res.status(400).json({ message: 'Category name already exists for this academy' });
+      return;
+    }
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Update question category
+export const updateQuestionCategory = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const id = parseInt(safeParamString(req.params.id));
+    if (isNaN(id)) {
+      res.status(400).json({ message: req.t('INVALID_ID') });
+      return;
+    }
+
+    const name_vi = getBodyString(req.body.name_vi);
+    const name_en = getBodyString(req.body.name_en);
+    const name_zh = getBodyString(req.body.name_zh);
+    const description = getBodyString(req.body.description);
+
+    const category = await prisma.questionCategory.update({
+      where: { id },
+      data: { name_vi, name_en, name_zh, description },
+    });
+
+    res.status(200).json({ message: 'Category updated successfully', category });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Delete question category
+export const deleteQuestionCategory = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const id = parseInt(safeParamString(req.params.id));
+    if (isNaN(id)) {
+      res.status(400).json({ message: req.t('INVALID_ID') });
+      return;
+    }
+
+    // Delete all questions in this category first (cascade)
+    await prisma.question.deleteMany({ where: { categoryId: id } });
+    await prisma.questionCategory.delete({ where: { id } });
+
+    res.status(200).json({ message: 'Category deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Get questions by category
+export const getQuestions = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const categoryId = parseInt(safeParamString(req.params.categoryId));
+    if (isNaN(categoryId)) {
+      res.status(400).json({ message: req.t('INVALID_ID') });
+      return;
+    }
+
+    const questions = await prisma.question.findMany({
+      where: { categoryId },
+      include: {
+        options: { orderBy: { order: 'asc' } },
+      },
+      orderBy: { id: 'desc' },
+    });
+
+    res.status(200).json({ questions });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Create question
+export const createQuestion = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const categoryId = parseInt(safeParamString(req.params.categoryId));
+    if (isNaN(categoryId)) {
+      res.status(400).json({ message: req.t('INVALID_ID') });
+      return;
+    }
+
+    const question_vi = getBodyString(req.body.question_vi);
+    const question_en = getBodyString(req.body.question_en);
+    const question_zh = getBodyString(req.body.question_zh);
+    const type = getBodyString(req.body.type);
+    const difficulty = getBodyString(req.body.difficulty) || 'MEDIUM';
+    const correctAnswer = req.body.correctAnswer;
+
+    if (!question_vi || !type) {
+      res.status(400).json({ message: 'question_vi and type are required' });
+      return;
+    }
+
+    // Validate question type
+    const validTypes = ['FILL_BLANK', 'SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE'];
+    if (!validTypes.includes(type)) {
+      res.status(400).json({ message: 'Invalid question type' });
+      return;
+    }
+
+    const question = await prisma.question.create({
+      data: {
+        question_vi,
+        question_en,
+        question_zh,
+        type: type as 'FILL_BLANK' | 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE',
+        difficulty: difficulty as 'EASY' | 'MEDIUM' | 'HARD',
+        correctAnswer: correctAnswer || null,
+        categoryId,
+      },
+    });
+
+    res.status(201).json({ message: 'Question created successfully', question });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Update question
+export const updateQuestion = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const id = parseInt(safeParamString(req.params.id));
+    if (isNaN(id)) {
+      res.status(400).json({ message: req.t('INVALID_ID') });
+      return;
+    }
+
+    const question_vi = getBodyString(req.body.question_vi);
+    const question_en = getBodyString(req.body.question_en);
+    const question_zh = getBodyString(req.body.question_zh);
+    const type = getBodyString(req.body.type);
+    const difficulty = getBodyString(req.body.difficulty);
+    const correctAnswer = req.body.correctAnswer;
+
+    const question = await prisma.question.update({
+      where: { id },
+      data: {
+        question_vi,
+        question_en,
+        question_zh,
+        type: type ? (type as 'FILL_BLANK' | 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE') : undefined,
+        difficulty: difficulty ? (difficulty as 'EASY' | 'MEDIUM' | 'HARD') : undefined,
+        correctAnswer,
+      },
+    });
+
+    res.status(200).json({ message: 'Question updated successfully', question });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Delete question
+export const deleteQuestion = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const id = parseInt(safeParamString(req.params.id));
+    if (isNaN(id)) {
+      res.status(400).json({ message: req.t('INVALID_ID') });
+      return;
+    }
+
+    await prisma.question.delete({ where: { id } });
+
+    res.status(200).json({ message: 'Question deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Import questions from Excel
+export const importQuestions = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ message: 'No file uploaded' });
+      return;
+    }
+
+    const categoryId = parseInt(safeParamString(req.params.categoryId));
+    if (isNaN(categoryId)) {
+      res.status(400).json({ message: 'Invalid category ID' });
+      return;
+    }
+
+    // Verify category exists
+    const category = await prisma.questionCategory.findUnique({ where: { id: categoryId } });
+    if (!category) {
+      res.status(404).json({ message: 'Category not found' });
+      return;
+    }
+
+    // Parse Excel
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(worksheet) as Record<string, any>[];
+
+    if (!data || data.length === 0) {
+      res.status(400).json({ message: 'Excel file is empty' });
+      return;
+    }
+
+    const results = { success: 0, failed: 0, errors: [] as string[] };
+
+    // Process each row
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const rowNum = i + 2;
+
+      try {
+        const question_vi = getRowValue(row, ['question_vi', 'Câu hỏi (VN)', 'Câu hỏi (Tiếng Việt)']);
+        const question_en = getRowValue(row, ['question_en', 'Question (EN)', 'Question (English)']);
+        const question_zh = getRowValue(row, ['question_zh', '问题 (CN)', '问题 (中文)']);
+        const typeRaw = getRowValue(row, ['type', 'Loại câu hỏi']) || 'SINGLE_CHOICE';
+        const difficultyRaw = getRowValue(row, ['difficulty', 'Độ khó']) || 'MEDIUM';
+        const correctAnswerStr = getRowValue(row, ['correctAnswer', 'correct_answer', 'Đáp án đúng']);
+        
+        // Map question type
+        let type = 'SINGLE_CHOICE';
+        const typeMap: Record<string, string> = {
+          'fill_blank': 'FILL_BLANK', 'điền câu từ': 'FILL_BLANK', 'fill blank': 'FILL_BLANK',
+          'single_choice': 'SINGLE_CHOICE', 'trắc nghiệm 1 lựa chọn': 'SINGLE_CHOICE', 'single': 'SINGLE_CHOICE',
+          'multiple_choice': 'MULTIPLE_CHOICE', 'trắc nghiệm nhiều lựa chọn': 'MULTIPLE_CHOICE', 'multiple': 'MULTIPLE_CHOICE',
+          'true_false': 'TRUE_FALSE', 'chọn đúng sai': 'TRUE_FALSE', 'true/false': 'TRUE_FALSE',
+        };
+        if (typeMap[typeRaw.toLowerCase()]) {
+          type = typeMap[typeRaw.toLowerCase()];
+        }
+
+        // Map difficulty
+        let difficulty = 'MEDIUM';
+        const diffMap: Record<string, string> = {
+          'easy': 'EASY', 'dễ': 'EASY',
+          'medium': 'MEDIUM', 'trung bình': 'MEDIUM', 'trungbinh': 'MEDIUM',
+          'hard': 'HARD', 'khó': 'HARD',
+        };
+        if (diffMap[difficultyRaw.toLowerCase()]) {
+          difficulty = diffMap[difficultyRaw.toLowerCase()];
+        }
+
+        if (!question_vi) {
+          results.failed++;
+          results.errors.push(`Row ${rowNum}: Missing question content`);
+          continue;
+        }
+
+        // Parse correct answer - could be single value or array
+        let correctAnswer: any = correctAnswerStr;
+        if (type === 'MULTIPLE_CHOICE') {
+          // Split by comma for multiple correct answers
+          correctAnswer = correctAnswerStr.split(',').map((s: string) => s.trim());
+        }
+
+        // Create question
+        const question = await prisma.question.create({
+          data: {
+            question_vi,
+            question_en: question_en || null,
+            question_zh: question_zh || null,
+            type: type as 'FILL_BLANK' | 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE',
+            difficulty: difficulty as 'EASY' | 'MEDIUM' | 'HARD',
+            correctAnswer,
+            categoryId,
+          },
+        });
+
+        // Process options if needed (for choice types)
+        if (type === 'SINGLE_CHOICE' || type === 'MULTIPLE_CHOICE' || type === 'TRUE_FALSE') {
+          const option1 = getRowValue(row, ['option_a', 'option1_vi', 'Lựa chọn 1 (VN)', 'Đáp án A', 'Option A']);
+          const option2 = getRowValue(row, ['option_b', 'option2_vi', 'Lựa chọn 2 (VN)', 'Đáp án B', 'Option B']);
+          const option3 = getRowValue(row, ['option_c', 'option3_vi', 'Lựa chọn 3 (VN)', 'Đáp án C', 'Option C']);
+          const option4 = getRowValue(row, ['option_d', 'option4_vi', 'Lựa chọn 4 (VN)', 'Đáp án D', 'Option D']);
+
+          const optionFields = [
+            option1,
+            option2,
+            option3,
+            option4,
+          ];
+
+          const options = optionFields.filter(o => getCellValue(o)).map((opt: any, idx: number) => ({
+            option_vi: getCellValue(opt),
+            order: idx,
+            questionId: question.id,
+          }));
+
+          if (options.length > 0) {
+            await prisma.questionOption.createMany({ data: options });
+          }
+        }
+
+        results.success++;
+      } catch (err: any) {
+        results.failed++;
+        results.errors.push(`Row ${rowNum}: ${err.message}`);
+      }
+    }
+
+    res.status(200).json({
+      message: `Import completed: ${results.success} success, ${results.failed} failed`,
+      imported: results.success,
+      failed: results.failed,
+      errors: results.errors,
+      results,
+    });
+  } catch (error) {
+    res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
+  }
+};
+
+// Export question template
+export const exportQuestionTemplate = async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      res.status(403).json({ message: req.t('FORBIDDEN') });
+      return;
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const templateSheet = workbook.addWorksheet('Questions');
+    const guideSheet = workbook.addWorksheet('HuongDan');
+
+    const headers = [
+      'question_vi',
+      'question_en',
+      'question_zh',
+      'type',
+      'difficulty',
+      'correctAnswer',
+      'option1_vi',
+      'option2_vi',
+      'option3_vi',
+      'option4_vi',
+    ];
+
+    templateSheet.addRow(headers);
+    templateSheet.addRow([
+      'Câu hỏi mẫu tiếng Việt',
+      'Sample question in English',
+      '中文示例问题',
+      'SINGLE_CHOICE',
+      'EASY',
+      'A',
+      'Đáp án A',
+      'Đáp án B',
+      'Đáp án C',
+      'Đáp án D',
+    ]);
+    templateSheet.addRow([
+      'Câu hỏi điền từ mẫu',
+      'Fill blank sample',
+      '填空题示例',
+      'FILL_BLANK',
+      'MEDIUM',
+      'Đáp án đúng',
+      '',
+      '',
+      '',
+      '',
+    ]);
+
+    templateSheet.columns = [
+      { key: 'question_vi', width: 34 },
+      { key: 'question_en', width: 34 },
+      { key: 'question_zh', width: 28 },
+      { key: 'type', width: 24 },
+      { key: 'difficulty', width: 14 },
+      { key: 'correctAnswer', width: 18 },
+      { key: 'option1_vi', width: 24 },
+      { key: 'option2_vi', width: 24 },
+      { key: 'option3_vi', width: 24 },
+      { key: 'option4_vi', width: 24 },
+    ];
+
+    const headerRow = templateSheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: '1D4ED8' },
+    };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+    headerRow.height = 24;
+
+    templateSheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    const typeOptions = ['FILL_BLANK', 'SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE'];
+    const difficultyOptions = ['EASY', 'MEDIUM', 'HARD'];
+
+    for (let row = 2; row <= 500; row++) {
+      templateSheet.getCell(`D${row}`).dataValidation = {
+        type: 'list',
+        allowBlank: false,
+        formulae: [`"${typeOptions.join(',')}"`],
+        showErrorMessage: true,
+        error: 'Giá trị không hợp lệ. Hãy chọn trong danh sách.',
+      };
+      templateSheet.getCell(`E${row}`).dataValidation = {
+        type: 'list',
+        allowBlank: false,
+        formulae: [`"${difficultyOptions.join(',')}"`],
+        showErrorMessage: true,
+        error: 'Giá trị không hợp lệ. Hãy chọn trong danh sách.',
+      };
+    }
+
+    ['D2:D500', 'E2:E500'].forEach((range) => {
+      const [start, end] = range.split(':');
+      const startRow = parseInt(start.replace(/^[A-Z]+/, ''), 10);
+      const endRow = parseInt(end.replace(/^[A-Z]+/, ''), 10);
+      const column = start.replace(/[0-9]/g, '');
+      for (let r = startRow; r <= endRow; r++) {
+        const cell = templateSheet.getCell(`${column}${r}`);
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF7ED' },
+        };
+      }
+    });
+
+    const guideLines = [
+      'HUONG DAN NHAP CAU HOI',
+      '1) Bat buoc: question_vi, type, difficulty, correctAnswer.',
+      '2) type chi nhan: FILL_BLANK | SINGLE_CHOICE | MULTIPLE_CHOICE | TRUE_FALSE.',
+      '3) difficulty chi nhan: EASY | MEDIUM | HARD.',
+      '4) SINGLE_CHOICE: correctAnswer = A/B/C/D va can option1_vi..option4_vi.',
+      '5) MULTIPLE_CHOICE: correctAnswer = A,B hoac A,C,D.',
+      '6) FILL_BLANK: dien correctAnswer la dap an chuoi.',
+      '7) TRUE_FALSE: correctAnswer co the TRUE/FALSE.',
+    ];
+    guideLines.forEach((line) => guideSheet.addRow([line]));
+    guideSheet.getColumn(1).width = 120;
+    guideSheet.getCell('A1').font = { bold: true, size: 13, color: { argb: '1F2937' } };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=question_template.xlsx');
+    res.send(Buffer.from(buffer));
   } catch (error) {
     res.status(500).json({ message: req.t('INTERNAL_SERVER_ERROR') });
   }

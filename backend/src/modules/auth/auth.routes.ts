@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
-import { login, refresh, logout, getProfile, getUsers, getUser, createUser, updateUser, deleteUser, getDepartments, createDepartment, updateDepartment, deleteDepartment, getPositions, createPosition, updatePosition, deletePosition, getConfigs, setConfig, deleteConfig, getPublicAcademies, getAcademies, getAcademy, createAcademy, updateAcademy, deleteAcademy, getAcademyUsers, addAcademyUser, removeAcademyUser, getLecturers, createLecturer, updateLecturer, deleteLecturer, importUsers, exportUserTemplate } from './auth.controller';
+import { login, refresh, logout, getProfile, getUsers, getUser, createUser, updateUser, deleteUser, getDepartments, createDepartment, updateDepartment, deleteDepartment, getPositions, createPosition, updatePosition, deletePosition, getConfigs, setConfig, deleteConfig, getPublicAcademies, getAcademies, getAcademy, createAcademy, updateAcademy, deleteAcademy, getAcademyUsers, addAcademyUser, removeAcademyUser, getLecturers, createLecturer, updateLecturer, deleteLecturer, importUsers, exportUserTemplate, getQuestionCategories, createQuestionCategory, updateQuestionCategory, deleteQuestionCategory, getQuestions, createQuestion, updateQuestion, deleteQuestion, importQuestions, exportQuestionTemplate, getLearningOverviewReport, exportLearningOverviewReportExcel } from './auth.controller';
+import { getExamSessions, createExamSession, updateExamSession, deleteExamSession } from './examSession.controller';
 import { authMiddleware } from '../../middlewares/auth';
 
 const router = Router();
@@ -65,5 +66,32 @@ router.get('/lecturers', authMiddleware, getLecturers);
 router.post('/lecturers', authMiddleware, createLecturer);
 router.put('/lecturers/:id', authMiddleware, updateLecturer);
 router.delete('/lecturers/:id', authMiddleware, deleteLecturer);
+
+// ============ QUESTION BANK MANAGEMENT ============
+// Question Categories
+router.get('/question-categories', authMiddleware, getQuestionCategories);
+router.post('/question-categories', authMiddleware, createQuestionCategory);
+router.put('/question-categories/:id', authMiddleware, updateQuestionCategory);
+router.delete('/question-categories/:id', authMiddleware, deleteQuestionCategory);
+
+// Questions (by category)
+router.get('/question-categories/:categoryId/questions', authMiddleware, getQuestions);
+router.post('/question-categories/:categoryId/questions', authMiddleware, createQuestion);
+router.put('/questions/:id', authMiddleware, updateQuestion);
+router.delete('/questions/:id', authMiddleware, deleteQuestion);
+
+// Excel Import/Export
+router.post('/question-categories/:categoryId/import', authMiddleware, upload.single('file'), importQuestions);
+router.get('/questions/template', authMiddleware, exportQuestionTemplate);
+
+// ============ EXAM SESSION MANAGEMENT ============
+router.get('/exam-sessions', authMiddleware, getExamSessions);
+router.post('/exam-sessions', authMiddleware, createExamSession);
+router.put('/exam-sessions/:id', authMiddleware, updateExamSession);
+router.delete('/exam-sessions/:id', authMiddleware, deleteExamSession);
+
+// ============ REPORTS ============
+router.get('/reports/overview', authMiddleware, getLearningOverviewReport);
+router.get('/reports/overview/export', authMiddleware, exportLearningOverviewReportExcel);
 
 export default router;

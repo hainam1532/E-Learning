@@ -39,6 +39,7 @@ import {
   getAcademies,
   getInstructors,
   getVideos,
+  getCourseTags,
   addVideoToCourse,
   removeVideoFromCourse,
   type Course,
@@ -46,6 +47,7 @@ import {
   type Academy,
   type User,
   type Video,
+  type CourseTag,
 } from "../../services/course";
 
 const { Title, Text } = Typography;
@@ -58,6 +60,7 @@ export default function CourseManagement() {
   const [categories, setCategories] = useState<CourseCategory[]>([]);
   const [instructors, setInstructors] = useState<User[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
+  const [tags, setTags] = useState<CourseTag[]>([]);
   
 const [loading, setLoading] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -74,22 +77,24 @@ const [loading, setLoading] = useState(false);
 
   const [form] = Form.useForm();
 
-  // Fetch initial data
+// Fetch initial data
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [coursesData, academiesData, categoriesData, instructorsData, videosData] = await Promise.all([
+      const [coursesData, academiesData, categoriesData, instructorsData, videosData, tagsData] = await Promise.all([
         getCourses(),
         getAcademies(),
         getCourseCategories(),
         getInstructors(),
         getVideos(),
+        getCourseTags(),
       ]);
       setCourses(coursesData);
       setAcademies(academiesData);
       setCategories(categoriesData);
       setInstructors(instructorsData);
       setVideos(videosData);
+      setTags(tagsData);
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Failed to load management data");
     } finally {
@@ -163,7 +168,7 @@ const handleEdit = (record: Course) => {
       }
     }
     
-    let parsedTags = record.tags;
+let parsedTags = record.tags;
     if (typeof parsedTags === "string") {
       try {
         parsedTags = JSON.parse(parsedTags);
@@ -171,8 +176,17 @@ const handleEdit = (record: Course) => {
         parsedTags = [];
       }
     }
+    
+    // Convert saved tag names to tag IDs for the form selection
+    const tagIds: number[] = [];
+    if (parsedTags && Array.isArray(parsedTags)) {
+      parsedTags.forEach((tagName: string) => {
+        const tag = tags.find((t) => getLocalizedName(t, "name") === tagName);
+        if (tag) tagIds.push(tag.id);
+      });
+    }
 
-    setInitialValues({
+setInitialValues({
       title_vi: record.title_vi,
       title_en: record.title_en,
       title_zh: record.title_zh,
@@ -184,7 +198,7 @@ const handleEdit = (record: Course) => {
       language: record.language || "vi",
       targetAudience: record.targetAudience,
       benefits: parsedBenefits || [],
-      tags: parsedTags || [],
+      tags: tagIds, // Use converted tag IDs for form selection
       academyId: record.academyId,
       categoryId: record.categoryId,
       instructorId: record.instructorId,
@@ -241,11 +255,27 @@ const handleEdit = (record: Course) => {
     setAttachedVideos(newVideos);
   };
 
+// Convert selected tag IDs to tag names before saving
+  const convertTagsToNames = (tagIds: number[]): string[] => {
+    if (!tagIds || !Array.isArray(tagIds)) return [];
+    return tagIds
+      .map((id) => {
+        const tag = tags.find((t) => t.id === id);
+        return tag ? getLocalizedName(tag, "name") : null;
+      })
+      .filter((name): name is string => !!name);
+  };
+
   // Form submit handler
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
       setLoading(true);
+
+      // Convert tag IDs to tag names if tags are selected
+      if (values.tags && Array.isArray(values.tags)) {
+        values.tags = convertTagsToNames(values.tags);
+      }
 
       let savedCourse: Course;
 
@@ -686,12 +716,20 @@ const handleEdit = (record: Course) => {
                       )}
                     </Form.List>
 
-                    {/* Tags */}
+{/* Tags - Select from CourseTag table */}
                     <Form.Item name="tags" label="Thẻ khóa học">
                       <Select
-                        mode="tags"
+                        mode="multiple"
                         style={{ width: "100%" }}
-                        placeholder="Nhập thẻ và nhấn Enter để thêm (Ví dụ: ReactJS, Frontend)"
+                        placeholder="Chọn thẻ từ danh sách (hoặc nhập để tạo thẻ mới)"
+                        options={tags.map((tag) => ({
+                          value: tag.id,
+                          label: getLocalizedName(tag, "name"),
+                        }))}
+                        filterOption={(input, option) =>
+                          (option?.label ?? "").toString().toLowerCase().includes(input.toLowerCase())
+                        }
+                        allowClear
                       />
                     </Form.Item>
 

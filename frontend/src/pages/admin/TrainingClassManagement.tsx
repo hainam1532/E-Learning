@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Table,
   Button,
@@ -17,6 +17,8 @@ import {
   Modal,
   Card,
   Divider,
+  Collapse,
+  Progress,
 } from 'antd';
 import {
   PlusOutlined,
@@ -30,9 +32,25 @@ import {
   TeamOutlined,
   SolutionOutlined,
   InfoCircleOutlined,
+  BarChartOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
+import * as XLSX from 'xlsx';
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+} from 'recharts';
 import {
   getTrainingClasses,
   createTrainingClass,
@@ -48,6 +66,7 @@ import {
   type TrainingPlan,
   type ClassStudent,
   type ClassReport,
+  type ClassReportStudent,
 } from '../../services/training';
 import { getAcademies, getCourses, type Academy, type Course } from '../../services/course';
 import { authGet } from '../../services/auth/auth.get';
@@ -118,6 +137,9 @@ export default function TrainingClassManagement() {
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState<ClassReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
+  const [reportDeptFilter, setReportDeptFilter] = useState<number | undefined>(undefined);
+  const [reportPositionFilter, setReportPositionFilter] = useState<number | undefined>(undefined);
+  const [courseProgressDeptFilter, setCourseProgressDeptFilter] = useState<number | undefined>(undefined);
 
   // Tab 3: Student List & Actions inside Drawer
   const [students, setStudents] = useState<ClassStudent[]>([]);
@@ -251,6 +273,9 @@ export default function TrainingClassManagement() {
     setReportLoading(true);
     try {
       const data = await generateClassReport(classId);
+      setReportDeptFilter(undefined);
+      setReportPositionFilter(undefined);
+      setCourseProgressDeptFilter(undefined);
       setSelectedReport(data);
       setReportModalOpen(true);
     } catch (error) {
@@ -358,6 +383,192 @@ export default function TrainingClassManagement() {
   // Filter users that are not already in the class for the modal dropdown
   const currentStudentIds = students.map((s) => s.id);
   const availableUsers = allUsers.filter((u) => !currentStudentIds.includes(u.id));
+
+  const reportDepartments = useMemo(() => {
+    if (!selectedReport) return [];
+
+    const unique = new Map<number, string>();
+    selectedReport.students.forEach((student) => {
+      if (student.department?.id && student.department.name) {
+        unique.set(student.department.id, student.department.name);
+      }
+    });
+
+    return Array.from(unique.entries()).map(([value, label]) => ({ value, label }));
+  }, [selectedReport]);
+
+  const reportPositions = useMemo(() => {
+    if (!selectedReport) return [];
+
+    const unique = new Map<number, string>();
+    selectedReport.students.forEach((student) => {
+      if (student.position?.id && student.position.name) {
+        unique.set(student.position.id, student.position.name);
+      }
+    });
+
+    return Array.from(unique.entries()).map(([value, label]) => ({ value, label }));
+  }, [selectedReport]);
+
+  const filteredReportStudents = useMemo(() => {
+    if (!selectedReport) return [];
+
+    return selectedReport.students.filter((student) => {
+      const matchesDepartment = !reportDeptFilter || student.departmentId === reportDeptFilter;
+      const matchesPosition = !reportPositionFilter || student.positionId === reportPositionFilter;
+      return matchesDepartment && matchesPosition;
+    });
+  }, [selectedReport, reportDeptFilter, reportPositionFilter]);
+
+  const filteredCourseProgress = useMemo(() => {
+    if (!selectedReport) return [];
+
+    return selectedReport.courseProgress.map((course) => ({
+      ...course,
+      students: course.students.filter((student) => !courseProgressDeptFilter || student.departmentId === courseProgressDeptFilter),
+    }));
+  }, [selectedReport, courseProgressDeptFilter]);
+
+  const reportPieColors = ['#2563eb', '#f59e0b', '#8b5cf6', '#94a3b8'];
+
+  const exportTableReportExcel = () => {
+    if (!selectedReport) return;
+
+    const rows = filteredReportStudents.map((student) => ({
+      'Mã số': student.usercode,
+      'Tên học viên': student.fullName || '-',
+      'Bộ phận': student.department?.name || '-',
+      'Chức vụ': student.position?.name || '-',
+      'Số lượng khóa học': student.totalCourses,
+      'Khóa học hoàn thành': student.completedCourses,
+      'Khóa học chưa hoàn thành': student.incompleteCourses,
+      'Tổng số video': student.totalVideos,
+      'Video hoàn thành': student.completedVideos,
+      'Video chưa hoàn thành': student.incompleteVideos,
+      'Số lượng thi': student.totalExams,
+      'Thi đã hoàn thành': student.completedExams,
+      'Thi chưa hoàn thành': student.incompleteExams,
+      'Thi đạt': student.passedExams,
+      'Tỷ lệ hoàn thành (%)': student.completionRate,
+      'Trạng thái': student.statusLabel,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'BaoCaoBang');
+    XLSX.writeFile(workbook, `bao-cao-lop-${selectedReport.code}-bang.xlsx`);
+  };
+
+  const exportCourseProgressExcel = () => {
+    if (!selectedReport) return;
+
+    const rows = filteredCourseProgress.flatMap((course) =>
+      course.students.map((student) => ({
+        'Khóa học': course.courseName,
+        'Mã số': student.usercode,
+        'Tên học viên': student.fullName || '-',
+        'Bộ phận': student.department || '-',
+        'Chức vụ': student.position || '-',
+        'Tiến độ (%)': student.progressPercent,
+        'Hoàn thành video': student.videoStatus,
+        'Hoàn thành bài thi': student.examStatus,
+        'Trạng thái': student.statusLabel,
+      }))
+    );
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'TienDoKhoaHoc');
+    XLSX.writeFile(workbook, `bao-cao-lop-${selectedReport.code}-tien-do.xlsx`);
+  };
+
+  const reportTableColumns = [
+    {
+      title: 'Mã số',
+      dataIndex: 'usercode',
+      key: 'usercode',
+      width: 110,
+    },
+    {
+      title: 'Tên',
+      dataIndex: 'fullName',
+      key: 'fullName',
+      width: 180,
+      render: (value: string) => <span className="font-medium">{value || '-'}</span>,
+    },
+    {
+      title: 'Bộ phận',
+      key: 'department',
+      width: 150,
+      render: (_: unknown, record: ClassReportStudent) => record.department?.name || '-',
+    },
+    {
+      title: 'Chức vụ',
+      key: 'position',
+      width: 140,
+      render: (_: unknown, record: ClassReportStudent) => record.position?.name || '-',
+    },
+    {
+      title: 'SL khóa học',
+      dataIndex: 'totalCourses',
+      key: 'totalCourses',
+      width: 110,
+    },
+    {
+      title: 'KH hoàn thành',
+      dataIndex: 'completedCourses',
+      key: 'completedCourses',
+      width: 120,
+    },
+    {
+      title: 'KH chưa hoàn thành',
+      dataIndex: 'incompleteCourses',
+      key: 'incompleteCourses',
+      width: 145,
+    },
+    {
+      title: 'Tổng video',
+      dataIndex: 'totalVideos',
+      key: 'totalVideos',
+      width: 110,
+    },
+    {
+      title: 'Video hoàn thành',
+      dataIndex: 'completedVideos',
+      key: 'completedVideos',
+      width: 135,
+    },
+    {
+      title: 'Video chưa hoàn thành',
+      dataIndex: 'incompleteVideos',
+      key: 'incompleteVideos',
+      width: 160,
+    },
+    {
+      title: 'Số lượng thi',
+      dataIndex: 'totalExams',
+      key: 'totalExams',
+      width: 110,
+    },
+    {
+      title: 'Thi đã hoàn thành',
+      dataIndex: 'completedExams',
+      key: 'completedExams',
+      width: 135,
+    },
+    {
+      title: 'Thi chưa hoàn thành',
+      dataIndex: 'incompleteExams',
+      key: 'incompleteExams',
+      width: 150,
+    },
+    {
+      title: 'Thi đạt',
+      dataIndex: 'passedExams',
+      key: 'passedExams',
+      width: 90,
+    },
+  ];
 
   const columns = [
     {
@@ -483,7 +694,7 @@ export default function TrainingClassManagement() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
         <div>
-          <Title level={3} className="!mb-0 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <Title level={3} className="mb-0! bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Quản lý lớp học
           </Title>
           <Text type="secondary" className="text-slate-500">
@@ -636,7 +847,7 @@ export default function TrainingClassManagement() {
                     </Form.Item>
                   </div>
 
-                  <Divider titlePlacement="left" className="!my-2">Tiêu đề lớp học</Divider>
+                  <Divider titlePlacement="left" className="my-2!">Tiêu đề lớp học</Divider>
                   <Form.Item
                     name="name_vi"
                     label="Tên lớp học (Tiếng Việt)"
@@ -654,7 +865,7 @@ export default function TrainingClassManagement() {
                     </Form.Item>
                   </div>
 
-                  <Divider titlePlacement="left" className="!my-2">Nội dung & Mô tả chi tiết</Divider>
+                  <Divider titlePlacement="left" className="my-2!">Nội dung & Mô tả chi tiết</Divider>
                   <Form.Item name="targetAudience" label="Đối tượng tham gia">
                     <Input placeholder="Ví dụ: Nhân viên mới thử việc, Cán bộ quản lý..." />
                   </Form.Item>
@@ -766,7 +977,7 @@ export default function TrainingClassManagement() {
                 <div className="space-y-4 pt-2">
                   {/* Internal Search and Filters for Students */}
                   <div className="flex flex-wrap gap-2 items-end bg-slate-50 p-4 rounded-xl border border-slate-200/50">
-                    <div className="flex-1 min-w-[150px]">
+                    <div className="flex-1 min-w-37.5">
                       <label className="text-xs font-semibold text-slate-500 block mb-1">Tìm học viên</label>
                       <Input
                         placeholder="Mã số hoặc tên..."
@@ -774,7 +985,7 @@ export default function TrainingClassManagement() {
                         onChange={(e) => setStudentSearch(e.target.value)}
                       />
                     </div>
-                    <div className="flex-1 min-w-[150px]">
+                    <div className="flex-1 min-w-37.5">
                       <label className="text-xs font-semibold text-slate-500 block mb-1">Phòng ban</label>
                       <Select
                         placeholder="Lọc phòng ban"
@@ -953,7 +1164,7 @@ export default function TrainingClassManagement() {
                 <div className="mt-2 space-y-1">
                   <span className="text-xs font-semibold text-red-500 block">Danh sách lỗi:</span>
                   {importResult.errors.map((err, i) => (
-                    <Paragraph key={i} className="!mb-0 text-xs text-red-600">
+                    <Paragraph key={i} className="mb-0! text-xs text-red-600">
                       • {err}
                     </Paragraph>
                   ))}
@@ -973,13 +1184,19 @@ export default function TrainingClassManagement() {
           </Space>
         }
         open={reportModalOpen}
-        onCancel={() => setReportModalOpen(false)}
+        onCancel={() => {
+          setReportModalOpen(false);
+          setReportDeptFilter(undefined);
+          setReportPositionFilter(undefined);
+          setCourseProgressDeptFilter(undefined);
+        }}
         footer={null}
-        width={750}
+        width={1400}
+        styles={{ body: { maxHeight: '80vh', overflowY: 'auto' } }}
       >
         {selectedReport ? (
           <div className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
               <div>
                 <Text type="secondary" className="text-xs block">Tên lớp học</Text>
                 <span className="font-bold text-slate-800 text-sm block">{selectedReport.name}</span>
@@ -1006,46 +1223,222 @@ export default function TrainingClassManagement() {
                 <Text type="secondary" className="text-xs block">Tổng số học viên</Text>
                 <Tag color="purple" className="mt-0.5 font-semibold">{selectedReport.studentCount} Học viên</Tag>
               </div>
+              <div>
+                <Text type="secondary" className="text-xs block">Kế hoạch đào tạo</Text>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {selectedReport.trainingPlans.length > 0 ? selectedReport.trainingPlans.map((plan) => (
+                    <Tag key={plan.id} color="geekblue">{plan.title}</Tag>
+                  )) : <span className="text-sm text-slate-500">Chưa gắn kế hoạch</span>}
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <span className="font-bold text-slate-800 text-sm block">Danh sách học viên trong lớp:</span>
-              <Table
-                dataSource={selectedReport.students}
-                rowKey="id"
-                size="small"
-                pagination={{ pageSize: 5 }}
-                columns={[
-                  {
-                    title: 'Mã số',
-                    dataIndex: 'usercode',
-                    key: 'usercode',
-                    width: 90,
-                  },
-                  {
-                    title: 'Học viên',
-                    dataIndex: 'fullName',
-                    key: 'fullName',
-                    render: (text) => <span className="font-medium">{text}</span>,
-                  },
-                  {
-                    title: 'Email',
-                    dataIndex: 'email',
-                    key: 'email',
-                  },
-                  {
-                    title: 'Phòng ban',
-                    key: 'department',
-                    render: (_, record) => record.department?.name || '-',
-                  },
-                  {
-                    title: 'Chức vụ',
-                    key: 'position',
-                    render: (_, record) => record.position?.name || '-',
-                  },
-                ]}
-              />
-            </div>
+            <Tabs
+              items={[
+                {
+                  key: 'table',
+                  label: 'Dạng bảng',
+                  children: (
+                    <div className="space-y-4">
+                      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+                        <div className="flex flex-col md:flex-row gap-3">
+                          <Select
+                            allowClear
+                            placeholder="Lọc theo phòng ban"
+                            className="min-w-56"
+                            value={reportDeptFilter}
+                            onChange={(value) => setReportDeptFilter(value)}
+                            options={reportDepartments}
+                          />
+                          <Select
+                            allowClear
+                            placeholder="Lọc theo chức vụ"
+                            className="min-w-56"
+                            value={reportPositionFilter}
+                            onChange={(value) => setReportPositionFilter(value)}
+                            options={reportPositions}
+                          />
+                        </div>
+                        <Button icon={<FileExcelOutlined />} type="primary" className="bg-green-600 border-none" onClick={exportTableReportExcel}>
+                          Xuất Excel
+                        </Button>
+                      </div>
+
+                      <Table
+                        dataSource={filteredReportStudents}
+                        rowKey="id"
+                        size="small"
+                        scroll={{ x: 1800 }}
+                        pagination={{ pageSize: 10 }}
+                        columns={reportTableColumns}
+                      />
+                    </div>
+                  ),
+                },
+                {
+                  key: 'chart',
+                  label: 'Dạng biểu đồ',
+                  children: (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                        <Card size="small" className="rounded-2xl border-slate-200">
+                          <Text type="secondary" className="text-xs">Tổng số học viên</Text>
+                          <div className="text-3xl font-bold text-slate-800 mt-2">{selectedReport.summary.totalStudents}</div>
+                        </Card>
+                        <Card size="small" className="rounded-2xl border-slate-200">
+                          <Text type="secondary" className="text-xs">Tỷ lệ hoàn thành TB</Text>
+                          <div className="text-3xl font-bold text-blue-600 mt-2">{selectedReport.summary.averageCompletionRate}%</div>
+                        </Card>
+                        <Card size="small" className="rounded-2xl border-slate-200">
+                          <Text type="secondary" className="text-xs">Người hoàn thành khóa học</Text>
+                          <div className="text-3xl font-bold text-emerald-600 mt-2">{selectedReport.summary.completedUsers}</div>
+                        </Card>
+                        <Card size="small" className="rounded-2xl border-slate-200">
+                          <Text type="secondary" className="text-xs">Người thi đạt</Text>
+                          <div className="text-3xl font-bold text-violet-600 mt-2">{selectedReport.summary.passedExamUsers}</div>
+                        </Card>
+                      </div>
+
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        <Card title="Tỷ lệ trạng thái học viên" className="rounded-2xl border-slate-200">
+                          <div className="h-80">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie
+                                  data={selectedReport.statusDistribution}
+                                  dataKey="count"
+                                  nameKey="label"
+                                  cx="50%"
+                                  cy="50%"
+                                  outerRadius={110}
+                                  label={({ label, payload }: any) => {
+                                    if (!payload || payload.count === 0) {
+                                      return '';
+                                    }
+
+                                    return `${label}: ${(payload.percent || 0).toFixed(0)}%`;
+                                  }}
+                                >
+                                  {selectedReport.statusDistribution.map((entry, index) => (
+                                    <Cell key={entry.key} fill={reportPieColors[index % reportPieColors.length]} />
+                                  ))}
+                                </Pie>
+                                <Legend />
+                                <RechartsTooltip formatter={(value: number, _name: string, item: any) => [`${value} học viên`, item?.payload?.label]} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </Card>
+
+                        <Card title="Top 10 học viên điểm thi cao" className="rounded-2xl border-slate-200">
+                          <Table
+                            dataSource={selectedReport.topExamScorers}
+                            rowKey="userId"
+                            size="small"
+                            pagination={false}
+                            columns={[
+                              { title: '#', dataIndex: 'rank', key: 'rank', width: 60 },
+                              { title: 'Mã số', dataIndex: 'usercode', key: 'usercode', width: 100 },
+                              { title: 'Tên', dataIndex: 'fullName', key: 'fullName', render: (value) => value || '-' },
+                              { title: 'Bộ phận', dataIndex: 'department', key: 'department' },
+                              { title: 'Điểm TB', dataIndex: 'averageExamScore', key: 'averageExamScore', width: 90 },
+                              { title: 'Thi đạt', dataIndex: 'passedExams', key: 'passedExams', width: 80 },
+                            ]}
+                          />
+                        </Card>
+                      </div>
+
+                      <Card title="Tiến độ theo phòng ban" className="rounded-2xl border-slate-200">
+                        <div className="h-96">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={selectedReport.departmentProgress} margin={{ top: 16, right: 16, left: 0, bottom: 40 }}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="departmentName" angle={-15} textAnchor="end" interval={0} height={70} />
+                              <YAxis />
+                              <RechartsTooltip />
+                              <Legend />
+                              <Bar dataKey="completedUsers" name="Hoàn thành khóa học" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="incompleteUsers" name="Chưa hoàn thành" fill="#f97316" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="completedVideos" name="Video hoàn thành" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="passedExams" name="Thi đạt" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </Card>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'course-progress',
+                  label: 'Tiến độ khóa học',
+                  children: (
+                    <div className="space-y-4">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <Select
+                          allowClear
+                          placeholder="Lọc theo phòng ban"
+                          className="min-w-56"
+                          value={courseProgressDeptFilter}
+                          onChange={(value) => setCourseProgressDeptFilter(value)}
+                          options={reportDepartments}
+                        />
+                        <Button icon={<FileExcelOutlined />} type="primary" className="bg-green-600 border-none" onClick={exportCourseProgressExcel}>
+                          Xuất Excel
+                        </Button>
+                      </div>
+
+                      <Collapse
+                        items={filteredCourseProgress.map((course) => ({
+                          key: String(course.courseId),
+                          label: (
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 pr-4">
+                              <span className="font-semibold text-slate-800">{course.courseName}</span>
+                              <div className="flex flex-wrap gap-2 text-xs">
+                                <Tag color="blue">{course.totalVideos} video</Tag>
+                                <Tag color="green">{course.completedStudents} học viên hoàn thành</Tag>
+                              </div>
+                            </div>
+                          ),
+                          children: (
+                            <Table
+                              dataSource={course.students}
+                              rowKey="userId"
+                              size="small"
+                              pagination={{ pageSize: 8 }}
+                              scroll={{ x: 1100 }}
+                              columns={[
+                                { title: 'Tên', dataIndex: 'fullName', key: 'fullName', render: (value) => value || '-' },
+                                { title: 'Mã số', dataIndex: 'usercode', key: 'usercode', width: 110 },
+                                { title: 'Bộ phận', dataIndex: 'department', key: 'department', width: 140 },
+                                { title: 'Chức vụ', dataIndex: 'position', key: 'position', width: 140 },
+                                {
+                                  title: 'Tiến độ %',
+                                  dataIndex: 'progressPercent',
+                                  key: 'progressPercent',
+                                  width: 180,
+                                  render: (value) => <Progress percent={value} size="small" />,
+                                },
+                                { title: 'Hoàn thành video', dataIndex: 'videoStatus', key: 'videoStatus', width: 160 },
+                                { title: 'Hoàn thành bài thi', dataIndex: 'examStatus', key: 'examStatus', width: 160 },
+                                {
+                                  title: 'Trạng thái',
+                                  dataIndex: 'statusLabel',
+                                  key: 'statusLabel',
+                                  width: 120,
+                                  render: (value) => (
+                                    <Tag color={value === 'Hoàn thành' ? 'green' : value === 'Đang học' ? 'blue' : 'default'}>{value}</Tag>
+                                  ),
+                                },
+                              ]}
+                            />
+                          ),
+                        }))}
+                      />
+                    </div>
+                  ),
+                },
+              ]}
+            />
           </div>
         ) : (
           <div className="p-8 text-center text-slate-400">Không có dữ liệu báo cáo</div>

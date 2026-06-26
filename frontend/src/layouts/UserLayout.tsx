@@ -1,77 +1,27 @@
 import { useState, useEffect } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Dropdown, Avatar, Button, Select, type MenuProps, Drawer, Menu } from 'antd';
-import { UserOutlined, LogoutOutlined, AppstoreOutlined, HomeOutlined, MenuOutlined } from '@ant-design/icons';
+import { Dropdown, Avatar, Button, type MenuProps, Drawer, Menu } from 'antd';
+import {
+  UserOutlined,
+  LogoutOutlined,
+  HomeOutlined,
+  MenuOutlined,
+  BookOutlined,
+  TagsOutlined,
+} from '@ant-design/icons';
 import LanguageSelector from '../components/LanguageSelector';
-import { authGet } from '../services/auth/auth.get';
-import type { Academy } from '../services/course';
 
 export default function UserLayout() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
-  const [academies, setAcademies] = useState<Academy[]>([]);
-  const [selectedAcademy, setSelectedAcademy] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Filter academies based on user permission
-  const filterAcademiesForUser = (allAcademies: Academy[], currentUserId?: string): Academy[] => {
-    if (!currentUserId) {
-      return allAcademies.filter(a => a.isPublic);
-    }
-    return allAcademies.filter(a => {
-      if (a.isPublic) return true;
-      const assignedUserIds = a.users?.map(u => u.id) || [];
-      return assignedUserIds.includes(Number(currentUserId));
-    });
-  };
-
-  // Get academy name based on language
-  const getAcademyName = (academy: Academy): string => {
-    const lang = localStorage.getItem('i18nextLng') || 'vi';
-    if (lang === 'en') return academy.name_en || academy.name_vi || '';
-    if (lang === 'zh') return academy.name_zh || academy.name_vi || '';
-    return academy.name_vi || '';
-  };
-
-// Fetch academies on mount
-  useEffect(() => {
-    const fetchAcademies = async () => {
-      try {
-        let data: Academy[];
-        
-        // Use admin endpoint only for admin users, public endpoint for everyone else
-        if (isAuthenticated && user?.role === 'admin') {
-          const response = await authGet.getAcademies();
-          data = response.data.academies;
-        } else {
-          const response = await authGet.getPublicAcademies();
-          data = response.data.academies;
-        }
-        
-        const filteredAcademies = filterAcademiesForUser(data, user?.id);
-        setAcademies(filteredAcademies);
-      } catch (error) {
-        console.error('Failed to fetch academies:', error);
-      }
-    };
-    fetchAcademies();
-  }, [user?.id, user?.role, isAuthenticated]);
 
   // Handle logout
   const handleLogout = () => {
     logout();
     navigate('/login');
-  };
-
-  const handleAcademyChange = (value: number | null) => {
-    setSelectedAcademy(value);
-    if (value) {
-      navigate(`/?academy=${value}`);
-    } else {
-      navigate('/');
-    }
   };
 
   const userMenuItems: MenuProps['items'] = [
@@ -85,7 +35,7 @@ export default function UserLayout() {
     },
     ...(user?.role === 'admin' ? [{
       key: 'admin-dashboard',
-      icon: <AppstoreOutlined />,
+      icon: <BookOutlined />,
       label: <Link to="/admin">Trang Quản Trị</Link>,
     }] : []),
     {
@@ -103,10 +53,10 @@ export default function UserLayout() {
       <header className="sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-slate-100 shadow-sm px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-blue-500/30 transform group-hover:scale-105 transition-transform duration-200">
+            <div className="w-10 h-10 rounded-xl bg-linear-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-blue-500/30 transform group-hover:scale-105 transition-transform duration-200">
               E+
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+            <span className="text-xl font-bold bg-linear-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
               Learning
             </span>
           </Link>
@@ -116,28 +66,15 @@ export default function UserLayout() {
             <Link to="/" className="text-slate-600 hover:text-blue-600 font-medium transition-colors flex items-center gap-1.5">
               <HomeOutlined /> Trang chủ
             </Link>
+            <Link to="/courses" className="text-slate-600 hover:text-blue-600 font-medium transition-colors flex items-center gap-1.5">
+              <BookOutlined /> Khóa học
+            </Link>
+            <Link to="/topics" className="text-slate-600 hover:text-blue-600 font-medium transition-colors flex items-center gap-1.5">
+              <TagsOutlined /> Chủ đề
+            </Link>
             <Link to="/profile" className="text-slate-600 hover:text-blue-600 font-medium transition-colors flex items-center gap-1.5">
               <UserOutlined /> Cá nhân
             </Link>
-            {academies.length > 0 && (
-              <Select
-                value={selectedAcademy}
-                onChange={handleAcademyChange}
-                placeholder="Chọn học viện"
-                allowClear
-                showSearch
-                optionFilterProp="children"
-                className="min-w-[180px]"
-                popupMatchSelectWidth={false}
-                filterOption={(input, option) =>
-                  (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
-                }
-                options={academies.map(a => ({
-                  value: a.id,
-                  label: getAcademyName(a),
-                }))}
-              />
-            )}
           </nav>
 
 {/* Mobile Menu Button - chỉ hiện trên mobile */}
@@ -155,7 +92,7 @@ export default function UserLayout() {
               title={
                 <Link to="/" onClick={() => setMobileMenuOpen(false)}>
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold shadow-lg">
+                    <div className="w-8 h-8 rounded-lg bg-linear-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold shadow-lg">
                       E+
                     </div>
                     <span className="text-lg font-bold">Learning</span>
@@ -181,15 +118,16 @@ export default function UserLayout() {
                     icon: <UserOutlined />,
                     label: <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>Cá nhân</Link>,
                   },
-                  ...(academies.length > 0 ? [{
-                    key: 'academies',
-                    icon: <AppstoreOutlined />,
-                    label: 'Học viện',
-                    children: academies.map(a => ({
-                      key: `/?academy=${a.id}`,
-                      label: <Link to={`/?academy=${a.id}`} onClick={() => setMobileMenuOpen(false)}>{getAcademyName(a)}</Link>,
-                    })),
-                  }] : []),
+                  {
+                    key: '/courses',
+                    icon: <BookOutlined />,
+                    label: <Link to="/courses" onClick={() => setMobileMenuOpen(false)}>Khóa học</Link>,
+                  },
+                  {
+                    key: '/topics',
+                    icon: <TagsOutlined />,
+                    label: <Link to="/topics" onClick={() => setMobileMenuOpen(false)}>Chủ đề</Link>,
+                  },
                 ]}
               />
             </Drawer>
@@ -226,7 +164,7 @@ export default function UserLayout() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-8">
+      <main className="flex-1 w-full px-4 md:px-8 py-8">
         <Outlet />
       </main>
 

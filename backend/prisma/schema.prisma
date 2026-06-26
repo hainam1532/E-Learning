@@ -105,7 +105,7 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-// Danh mục khóa học
+// Danh mục khóa học (có cấu trúc phân cấp cha-con)
 model CourseCategory {
   id          Int      @id @default(autoincrement())
   name_vi     String?
@@ -114,11 +114,24 @@ model CourseCategory {
   code        String   @unique
   description String?
   
+  // Quan hệ với học viện (bắt buộc)
+  academyId   Int
+  academy    Academy   @relation(fields: [academyId], references: [id])
+  
+// Danh mục cha (tự tham chiếu - cho phép tạo danh mục con)
+  parentId    Int?
+  parent     CourseCategory? @relation("CategoryChildren", fields: [parentId], references: [id])
+  children   CourseCategory[] @relation("CategoryChildren")
+  
+  // Khóa học thuộc danh mục này
   courses     Course[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@unique([code, academyId])
+  @@index([academyId])
+  @@index([parentId])
   @@map("course_categories")
 }
 
@@ -328,6 +341,15 @@ model Academy {
   trainingClasses TrainingClass[]
   trainingPlans  TrainingPlan[]
   
+  // Danh mục câu hỏi thuộc học viện
+  questionCategories QuestionCategory[]
+
+  // Danh mục khóa học thuộc học viện
+  courseCategories CourseCategory[]
+
+  // Kỳ thi thuộc học viện
+  examSessions ExamSession[]
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -524,7 +546,156 @@ model Lecturer {
   trainingClasses TrainingClass[]
   
   createdAt DateTime    @default(now())
-  updatedAt DateTime   @updatedAt
+  updatedAt DateTime    @updatedAt
 
   @@map("lecturers")
+}
+
+// ==================== QUESTION BANK MODELS ====================
+// Question types: FILL_BLANK, SINGLE_CHOICE, MULTIPLE_CHOICE, TRUE_FALSE
+// Question difficulty: EASY, MEDIUM, HARD
+
+// Danh mục câu hỏi (Question Category)
+model QuestionCategory {
+  id          Int      @id @default(autoincrement())
+  name_vi     String?
+  name_en     String?
+  name_zh     String?
+  description String?
+  
+  // Quan hệ với học viện (bắt buộc)
+  academyId   Int
+  academy    Academy   @relation(fields: [academyId], references: [id])
+  
+  // Danh sách câu hỏi trong danh mục
+  questions   Question[]
+
+  // Kỳ thi liên kết đề (tạo từ danh mục)
+  examSessions ExamSession[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([name_vi, academyId])
+  @@map("question_categories")
+}
+
+// Kỳ thi (Exam Session)
+model ExamSession {
+  id Int @id @default(autoincrement())
+
+  // Tên kỳ thi đa ngôn ngữ
+  name_vi String
+  name_en String?
+  name_zh String?
+
+  // Quan hệ học viện và đề thi liên kết (danh mục câu hỏi)
+  academyId Int
+  academy Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
+
+  paperCategoryId Int
+  paperCategory QuestionCategory @relation(fields: [paperCategoryId], references: [id], onDelete: Cascade)
+
+  // Thời gian thi
+  startAt DateTime
+  endAt DateTime
+
+  // Quy tắc thi
+  attemptLimit Int @default(1)
+  passingScore Int @default(70)
+  durationMinutes Int @default(60)
+
+  // Cài đặt chống gian lận
+  antiCheat Boolean @default(true)
+  requireFullscreen Boolean @default(true)
+  detectTabSwitch Boolean @default(true)
+  shuffleQuestions Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([academyId])
+  @@index([paperCategoryId])
+  @@map("exam_sessions")
+}
+
+// Câu hỏi (Question)
+model Question {
+  id              Int      @id @default(autoincrement())
+  
+  // Nội dung câu hỏi đa ngôn ngữ
+  question_vi    String?
+  question_en    String?
+  question_zh    String?
+  
+  // Loại câu hỏi (stored as String)
+  type           String    @default("SINGLE_CHOICE")
+  
+  // Độ khó (stored as String)
+  difficulty     String    @default("MEDIUM")
+  
+  // Câu trả lời đúng (JSON - có thể array cho MULTIPLE_CHOICE)
+  correctAnswer  Json
+  
+  // Quan hệ với danh mục
+  categoryId     Int
+  category       QuestionCategory  @relation(fields: [categoryId], references: [id])
+  
+  // Các lựa chọn (cho câu hỏi chọn)
+  options        QuestionOption[]
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("questions")
+}
+
+// Lựa chọn câu trả lời (Question Option)
+model QuestionOption {
+  id          Int      @id @default(autoincrement())
+  
+  // Nội dung lựa chọn đa ngôn ngữ
+  option_vi   String?
+  option_en   String?
+  option_zh   String?
+  
+  // Thứ tự hiển thị
+  order       Int      @default(0)
+  
+  // Câu hỏi cha
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+
+  @@map("question_options")
+}
+
+// ==================== DOCUMENT MODELS ====================
+
+// Tài liệu (Document)
+model Document {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  type      String   // FILE_TYPE: xlsx, docx, pdf, pptx
+  size      Int      // Size in bytes
+  bucket    String
+  path      String   // Path in MinIO
+  
+  createdAt DateTime @default(now())
+
+  @@map("documents")
+}
+
+// Thẻ khóa học (Course Tag)
+model CourseTag {
+  id          Int      @id @default(autoincrement())
+  name_vi     String
+  name_en     String?
+  name_zh     String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("course_tags")
 }

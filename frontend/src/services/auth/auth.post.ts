@@ -145,9 +145,103 @@ export const authPost = {
   updateLecturer: (id: number, data: { code?: string; name?: string; type?: string; gender?: string; phone?: string; email?: string; address?: string }) =>
     api.put(`/auth/lecturers/${id}`, data),
 
-  /**
+/**
    * Delete lecturer (Admin)
    */
   deleteLecturer: (id: number) =>
     api.delete(`/auth/lecturers/${id}`),
+
+  // ============ QUESTION BANK MANAGEMENT ============
+  /**
+   * Create question category (Admin)
+   */
+  createQuestionCategory: (data: { name_vi: string; name_en?: string; name_zh?: string; description?: string; academyId: number }) =>
+    api.post('/auth/question-categories', data),
+
+  /**
+   * Update question category (Admin)
+   */
+  updateQuestionCategory: (id: number, data: { name_vi?: string; name_en?: string; name_zh?: string; description?: string }) =>
+    api.put(`/auth/question-categories/${id}`, data),
+
+  /**
+   * Delete question category (Admin)
+   */
+  deleteQuestionCategory: (id: number) =>
+    api.delete(`/auth/question-categories/${id}`),
+
+  /**
+   * Create question (Admin)
+   */
+  createQuestion: (categoryId: number, data: { question_vi: string; question_en?: string; question_zh?: string; type: string; difficulty?: string; correctAnswer?: any }) =>
+    api.post(`/auth/question-categories/${categoryId}/questions`, data),
+
+  /**
+   * Update question (Admin)
+   */
+  updateQuestion: (id: number, data: { question_vi?: string; question_en?: string; question_zh?: string; type?: string; difficulty?: string; correctAnswer?: any }) =>
+    api.put(`/auth/questions/${id}`, data),
+
+  /**
+   * Delete question (Admin)
+   */
+  deleteQuestion: (id: number) =>
+    api.delete(`/auth/questions/${id}`),
+
+  /**
+   * Import questions from Excel (Admin)
+   */
+  importQuestions: (categoryId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/auth/question-categories/${categoryId}/import`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  // ============ EXAM SESSION MANAGEMENT ============
+  /**
+   * Create exam session (Admin)
+   */
+  createExamSession: (data: {
+    name_vi: string;
+    name_en?: string;
+    name_zh?: string;
+    academyId: number;
+    paperCategoryId: number;
+    startAt: string;
+    endAt: string;
+    attemptLimit: number;
+    passingScore: number;
+    durationMinutes: number;
+    antiCheat: boolean;
+    requireFullscreen: boolean;
+    detectTabSwitch: boolean;
+    shuffleQuestions: boolean;
+  }) => api.post('/auth/exam-sessions', data),
+
+  /**
+   * Update exam session (Admin)
+   */
+  updateExamSession: (id: number, data: {
+    name_vi: string;
+    name_en?: string;
+    name_zh?: string;
+    academyId: number;
+    paperCategoryId: number;
+    startAt: string;
+    endAt: string;
+    attemptLimit: number;
+    passingScore: number;
+    durationMinutes: number;
+    antiCheat: boolean;
+    requireFullscreen: boolean;
+    detectTabSwitch: boolean;
+    shuffleQuestions: boolean;
+  }) => api.put(`/auth/exam-sessions/${id}`, data),
+
+  /**
+   * Delete exam session (Admin)
+   */
+  deleteExamSession: (id: number) => api.delete(`/auth/exam-sessions/${id}`),
 };

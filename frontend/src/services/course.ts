@@ -42,6 +42,7 @@ export interface Course {
   category?: CourseCategory;
   instructor?: User;
   courseVideos?: CourseVideo[];
+  likeCount?: number;
   lessons?: Lesson[];
   rule?: CourseRule;
   createdAt: string;
@@ -121,6 +122,13 @@ interface CourseCategoriesResponse {
 // Course API
 export async function getCourses(): Promise<Course[]> {
   const response = await api.get<CoursesResponse>("/courses");
+  return response.data.data;
+}
+
+export async function getFeaturedCourses(academyId?: number): Promise<Course[]> {
+  const response = await api.get<CoursesResponse>("/courses/featured", {
+    params: { academyId },
+  });
   return response.data.data;
 }
 
@@ -248,6 +256,129 @@ export async function getInstructors(): Promise<User[]> {
 export async function getVideos(): Promise<any[]> {
   const { getVideos: fetchVideos } = await import("./video/video.get");
   return fetchVideos();
+}
+
+// ===== Course Tags =====
+
+// CourseTag type
+export interface CourseTag {
+  id: number;
+  name_vi: string;
+  name_en?: string;
+  name_zh?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface CourseTagsResponse {
+  success: boolean;
+  data: CourseTag[];
+}
+
+export interface SpecialTopic {
+  id: number;
+  name_vi: string;
+  name_en?: string;
+  name_zh?: string;
+  page: string;
+  academyId: number;
+  orderIndex?: number;
+  academy?: Academy;
+  _count?: {
+    courses: number;
+  };
+  courses?: Course[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SpecialTopicPayload {
+  name_vi: string;
+  name_en?: string;
+  name_zh?: string;
+  academyId: number;
+  page?: string;
+  courseIds?: number[];
+}
+
+interface SpecialTopicsResponse {
+  success: boolean;
+  data: SpecialTopic[];
+}
+
+interface SpecialTopicResponse {
+  success: boolean;
+  data: SpecialTopic;
+}
+
+// Get all course tags
+export async function getCourseTags(): Promise<CourseTag[]> {
+  const response = await api.get<CourseTagsResponse>("/courses/tags");
+  return response.data.data;
+}
+
+// Create course tag
+export async function createCourseTag(data: Partial<CourseTag>): Promise<CourseTag> {
+  const response = await api.post<CourseTagsResponse>("/courses/tags", data);
+  return response.data.data[0];
+}
+
+// Update course tag
+export async function updateCourseTag(id: number, data: Partial<CourseTag>): Promise<CourseTag> {
+  const response = await api.put<CourseTagsResponse>(`/courses/tags/${id}`, data);
+  return response.data.data[0];
+}
+
+// Delete course tag
+export async function deleteCourseTag(id: number): Promise<void> {
+  await api.delete(`/courses/tags/${id}`);
+}
+
+export async function getSpecialTopics(params?: {
+  academyId?: number;
+  page?: string;
+  search?: string;
+}): Promise<SpecialTopic[]> {
+  const response = await api.get<SpecialTopicsResponse>("/courses/special-topics", { params });
+  return response.data.data;
+}
+
+export async function createSpecialTopic(data: SpecialTopicPayload): Promise<SpecialTopic> {
+  const response = await api.post<SpecialTopicResponse>("/courses/special-topics", data);
+  return response.data.data;
+}
+
+export async function updateSpecialTopic(
+  id: number,
+  data: Partial<SpecialTopicPayload>
+): Promise<SpecialTopic> {
+  const response = await api.put<SpecialTopicResponse>(`/courses/special-topics/${id}`, data);
+  return response.data.data;
+}
+
+export async function deleteSpecialTopic(id: number): Promise<void> {
+  await api.delete(`/courses/special-topics/${id}`);
+}
+
+export async function getCoursesBySpecialTopic(topicId: number): Promise<Course[]> {
+  const response = await api.get<CoursesResponse>(`/courses/special-topics/${topicId}/courses`);
+  return response.data.data;
+}
+
+export async function getHomeSpecialTopics(params?: {
+  academyId?: number;
+  page?: string;
+}): Promise<SpecialTopic[]> {
+  const response = await api.get<SpecialTopicsResponse>("/courses/special-topics/home", { params });
+  return response.data.data;
+}
+
+export async function reorderSpecialTopics(topicIds: number[]): Promise<void> {
+  await api.put("/courses/special-topics/reorder", { topicIds });
+}
+
+export async function reorderSpecialTopicCourses(topicId: number, courseIds: number[]): Promise<void> {
+  await api.put(`/courses/special-topics/${topicId}/courses/reorder`, { courseIds });
 }
 
 // Get course with user progress (for academy courses)

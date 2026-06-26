@@ -68,6 +68,89 @@ export interface ClassStudent {
   } | null;
 }
 
+export interface ClassReportStudent extends ClassStudent {
+  department?: (ClassStudent['department'] & { name?: string | null }) | null;
+  position?: (ClassStudent['position'] & { name?: string | null }) | null;
+  totalCourses: number;
+  completedCourses: number;
+  incompleteCourses: number;
+  totalVideos: number;
+  completedVideos: number;
+  incompleteVideos: number;
+  totalExams: number;
+  completedExams: number;
+  incompleteExams: number;
+  passedExams: number;
+  attemptedExams: number;
+  averageExamScore: number | null;
+  completionRate: number;
+  status: string;
+  statusLabel: string;
+  courseProgress: Array<{
+    courseId: number;
+    courseName: string;
+    totalVideos: number;
+    completedVideos: number;
+    incompleteVideos: number;
+    progressPercent: number;
+    startedVideos: number;
+    watchedSeconds: number;
+    isCompleted: boolean;
+  }>;
+}
+
+export interface ClassReportStatusBucket {
+  key: string;
+  label: string;
+  count: number;
+  percent: number;
+}
+
+export interface ClassReportTopExamScorer {
+  rank: number;
+  userId: number;
+  usercode: string;
+  fullName: string | null;
+  department: string;
+  position: string;
+  averageExamScore: number | null;
+  passedExams: number;
+}
+
+export interface ClassReportDepartmentProgress {
+  departmentId: number | null;
+  departmentName: string;
+  totalStudents: number;
+  completedUsers: number;
+  incompleteUsers: number;
+  completedVideos: number;
+  passedExams: number;
+}
+
+export interface ClassReportCourseProgressStudent {
+  userId: number;
+  usercode: string;
+  fullName: string | null;
+  department: string;
+  departmentId: number | null;
+  position: string;
+  positionId: number | null;
+  progressPercent: number;
+  completedVideos: number;
+  totalVideos: number;
+  videoStatus: string;
+  examStatus: string;
+  statusLabel: string;
+}
+
+export interface ClassReportCourseProgress {
+  courseId: number;
+  courseName: string;
+  totalVideos: number;
+  completedStudents: number;
+  students: ClassReportCourseProgressStudent[];
+}
+
 // Class report
 export interface ClassReport {
   id: number;
@@ -79,7 +162,24 @@ export interface ClassReport {
   startDate: string | null;
   endDate: string | null;
   studentCount: number;
-  students: ClassStudent[];
+  totalCourses: number;
+  totalVideos: number;
+  totalExams: number;
+  trainingPlans: Array<{ id: number; title: string }>;
+  summary: {
+    totalStudents: number;
+    averageCompletionRate: number;
+    completedUsers: number;
+    passedExamUsers: number;
+    totalCourses: number;
+    totalVideos: number;
+    totalExams: number;
+  };
+  statusDistribution: ClassReportStatusBucket[];
+  topExamScorers: ClassReportTopExamScorer[];
+  departmentProgress: ClassReportDepartmentProgress[];
+  courseProgress: ClassReportCourseProgress[];
+  students: ClassReportStudent[];
 }
 
 export type TrainingPlanStatus = 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
@@ -126,11 +226,6 @@ interface TrainingPlansResponse {
 interface TrainingPlanResponse {
   success: boolean;
   data: TrainingPlan;
-}
-
-interface TrainingClassesResponse {
-  success: boolean;
-  data: TrainingClass[];
 }
 
 interface ClassStudentsResponse {
@@ -382,6 +477,37 @@ export interface UserTrainingResource {
     title_zh?: string;
     coverImage?: string;
   };
+  document?: {
+    id: number;
+    name?: string | null;
+    type?: string;
+    size?: number;
+    url?: string | null;
+  };
+  exam?: {
+    id: number;
+    name_vi?: string | null;
+    name_en?: string | null;
+    name_zh?: string | null;
+    passingScore: number;
+    durationMinutes: number;
+    antiCheat: boolean;
+    requireFullscreen: boolean;
+    detectTabSwitch: boolean;
+    attemptLimit: number;
+    startAt: string;
+    endAt: string;
+  };
+  latestAttempt?: {
+    id: number;
+    status: string;
+    score?: number | null;
+    passed?: boolean | null;
+    isFraud?: boolean;
+    cheatWarnings?: number;
+    submittedAt?: string | null;
+  };
+  completed?: boolean;
   totalVideos: number;
   completedVideos: number;
   progressPercent: number;
@@ -419,4 +545,8 @@ export async function getMyTrainingEnrollments(): Promise<UserTrainingEnrollment
 export async function getMyTrainingPlans(): Promise<UserTrainingPlan[]> {
   const response = await api.get<{ success: boolean; data: UserTrainingPlan[] }>('/training/my-plans');
   return response.data.data;
+}
+
+export async function markTrainingResourceCompleted(resourceId: number): Promise<void> {
+  await api.post(`/training/resources/${resourceId}/complete`);
 }
