@@ -14,7 +14,6 @@ import {
   Tabs,
   Upload,
   Typography,
-  Tooltip,
 } from "antd";
 import {
   PlusOutlined,
@@ -25,10 +24,7 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   VideoCameraOutlined,
-  SettingOutlined,
-  InfoCircleOutlined,
 } from "@ant-design/icons";
-import { useTranslation } from "react-i18next";
 import {
   getCourses,
   createCourse,
@@ -54,7 +50,6 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 export default function CourseManagement() {
-  const { t } = useTranslation();
   const [courses, setCourses] = useState<Course[]>([]);
   const [academies, setAcademies] = useState<Academy[]>([]);
   const [categories, setCategories] = useState<CourseCategory[]>([]);
@@ -681,7 +676,7 @@ setInitialValues({
                           <label className="text-slate-800 text-sm font-medium block">
                             Lợi ích khóa học
                           </label>
-                          {fields.map((field, index) => (
+                          {fields.map((field) => (
                             <Form.Item required={false} key={field.key} className="!mb-2">
                               <div className="flex gap-2">
                                 <Form.Item

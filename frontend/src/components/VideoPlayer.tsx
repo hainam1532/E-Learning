@@ -14,6 +14,7 @@ import {
   QuestionCircleOutlined,
 } from "@ant-design/icons";
 import { Progress, message, Modal } from "antd";
+import { useTranslation } from "react-i18next";
 
 interface VideoPlayerProps {
   videoId: number;
@@ -42,8 +43,9 @@ export default function VideoPlayer({
   onTimeUpdate,
   onComplete,
   onPlayingChange,
-  videoName,
+  // videoName is kept in props but not used intentionally for potential future watermarking feature
 }: VideoPlayerProps) {
+  const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
@@ -52,7 +54,6 @@ export default function VideoPlayer({
   const [error, setError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [playbackRate, setPlaybackRate] = useState(1);
   const [lastSavedTime, setLastSavedTime] = useState(0);
   const [volume, setVolume] = useState(100);
   const [isMuted, setIsMuted] = useState(false);
@@ -60,6 +61,8 @@ export default function VideoPlayer({
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [savedSeconds, setSavedSeconds] = useState(0);
   const [pendingPlay, setPendingPlay] = useState(false);
+  // Playback rate is tracked internally for anti-fast-forward and lock-speed features
+  const [_playbackRate, setPlaybackRate] = useState(1);
 
   const watermark = courseRule?.showWatermark ? "E+ Learning" : null;
 
@@ -72,12 +75,12 @@ export default function VideoPlayer({
         setStreamUrl(result.data.streamUrl);
         setLoading(false);
       } catch (err) {
-        setError("Failed to load video");
+        setError(t("videoPlayer.loadFailed"));
         setLoading(false);
       }
     };
     loadStreamUrl();
-  }, [videoId]);
+  }, [videoId, t]);
 
   // Fetch saved progress when lessonId is provided
   useEffect(() => {
@@ -170,7 +173,7 @@ export default function VideoPlayer({
     }
   }, [pendingPlay, loading, onPlayingChange]);
 
-  // Handle video events
+// Handle video events
   const handleTimeUpdate = useCallback(() => {
     if (videoRef.current) {
       setCurrentTime(videoRef.current.currentTime);
@@ -198,16 +201,16 @@ export default function VideoPlayer({
           if (percentWatched >= 90) {
             await updateProgress(lessonId, Math.floor(currentTime), true);
             onComplete?.();
-            message.success("Video completed!");
+            message.success(t("videoPlayer.completed"));
           } else {
             message.warning(
-              "You need to watch at least 90% of the video to complete",
+              t("videoPlayer.require90Percent"),
             );
           }
         } else {
           await updateProgress(lessonId, Math.floor(currentTime), true);
           onComplete?.();
-          message.success("Video completed!");
+          message.success(t("videoPlayer.completed"));
         }
       } catch (err) {
         console.error("Failed to save progress:", err);
@@ -265,11 +268,10 @@ export default function VideoPlayer({
     };
   }, [trackProgress, lessonId, lastSavedTime]);
 
-  // Lock speed at 1x if rule is enabled
+// Lock speed at 1x if rule is enabled
   useEffect(() => {
     if (courseRule?.lockSpeed1x && videoRef.current) {
       videoRef.current.playbackRate = 1;
-      setPlaybackRate(1);
     }
   }, [courseRule?.lockSpeed1x]);
 
@@ -285,10 +287,10 @@ export default function VideoPlayer({
 
   const handleDownload = () => {
     if (courseRule?.blockDownload) {
-      message.warning("Download is disabled for this course");
+      message.warning(t("videoPlayer.downloadDisabled"));
       return;
     }
-    message.info("Download feature coming soon");
+    message.info(t("videoPlayer.downloadComingSoon"));
   };
 
   const handleVolumeChange = (value: number) => {
@@ -348,7 +350,7 @@ export default function VideoPlayer({
       <div className="relative aspect-video bg-slate-900 rounded-lg flex items-center justify-center">
         <div className="text-white text-center">
           <SyncOutlined spin className="text-4xl mb-4 text-blue-500" />
-          <p>Loading video...</p>
+          <p>{t("videoPlayer.loading")}</p>
         </div>
       </div>
     );
@@ -358,7 +360,7 @@ export default function VideoPlayer({
     return (
       <div className="relative aspect-video bg-slate-900 rounded-lg flex items-center justify-center">
         <div className="text-red-500 text-center">
-          <p className="text-xl font-semibold">Error</p>
+          <p className="text-xl font-semibold">{t("common.error")}</p>
           <p>{error}</p>
         </div>
       </div>
@@ -369,7 +371,7 @@ export default function VideoPlayer({
     return (
       <div className="relative aspect-video bg-slate-900 rounded-lg flex items-center justify-center">
         <div className="text-white text-center">
-          <p>Video not available</p>
+          <p>{t("videoPlayer.videoUnavailable")}</p>
         </div>
       </div>
     );
@@ -382,7 +384,7 @@ export default function VideoPlayer({
         title={
           <span className="flex items-center gap-2">
             <QuestionCircleOutlined className="text-blue-500" />
-            Tiếp tục xem video?
+            {t("videoPlayer.resumeTitle")}
           </span>
         }
         onCancel={() => {
@@ -395,22 +397,21 @@ export default function VideoPlayer({
             onClick={handleStartFromBeginning}
             className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition-colors"
           >
-            Xem lại từ đầu
+            {t("videoPlayer.startOver")}
           </button>,
           <button
             key="resume"
             onClick={handleResumeFromSaved}
             className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
           >
-            Tiếp tục (đến {formatTime(savedSeconds)})
+            {t("videoPlayer.resumeAt", { time: formatTime(savedSeconds) })}
           </button>,
         ]}
 closable={false}
         mask={{ closable: false }}
       >
         <p className="text-gray-600">
-          Bạn đã xem dừng lại ở phút <strong>{formatTime(savedSeconds)}</strong>
-          . Bạn có muốn tiếp tục xem từ đoạn này không?
+          {t("videoPlayer.resumeDescription", { time: formatTime(savedSeconds) })}
         </p>
       </Modal>
 
@@ -466,7 +467,7 @@ closable={false}
               <button
                 onClick={() => skipTime(-10)}
                 className="text-white text-lg hover:text-blue-400 transition-colors"
-                title="Rewind 10s"
+                title={t("videoPlayer.rewind10")}
               >
                 <StepBackwardOutlined />
               </button>
@@ -488,7 +489,7 @@ closable={false}
                 <button
                   onClick={toggleMute}
                   className="text-white text-lg hover:text-blue-400 transition-colors"
-                  title={isMuted ? "Unmute" : "Mute"}
+                  title={isMuted ? t("videoPlayer.unmute") : t("videoPlayer.mute")}
                 >
                   {isMuted || volume === 0 ? (
                     <SoundOutlined />
@@ -503,7 +504,7 @@ closable={false}
                   value={isMuted ? 0 : volume}
                   onChange={(e) => handleVolumeChange(Number(e.target.value))}
                   className="w-16 h-1 cursor-pointer accent-blue-500"
-                  title={`Volume: ${volume}%`}
+                  title={t("videoPlayer.volume", { volume })}
                 />
               </div>
 
@@ -516,7 +517,7 @@ closable={false}
               <button
                 onClick={toggleFullscreen}
                 className="text-white text-lg hover:text-blue-400 transition-colors"
-                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                title={isFullscreen ? t("videoPlayer.exitFullscreen") : t("videoPlayer.fullscreen")}
               >
                 {isFullscreen ? <CompressOutlined /> : <ExpandOutlined />}
               </button>
@@ -529,7 +530,7 @@ closable={false}
                     : ""
                 }`}
                 disabled={courseRule?.blockDownload}
-                title="Download"
+                title={t("videoPlayer.download")}
               >
                 <DownloadOutlined />
               </button>

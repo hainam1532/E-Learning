@@ -4,9 +4,7 @@ import {
   Alert,
   Button,
   Card,
-  Input,
   Modal,
-  Radio,
   Space,
   Tag,
   Typography,
@@ -26,8 +24,9 @@ import {
   startExam,
   submitExam,
 } from "../../services/exam";
+import { useTranslation } from 'react-i18next';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 type AnswerMap = Record<string, unknown>;
 
@@ -38,15 +37,16 @@ const formatSeconds = (seconds: number) => {
   return m.toString().padStart(2, "0") + ":" + s.toString().padStart(2, "0");
 };
 
-const getQuestionText = (q: ExamQuestion) =>
-  q.question_vi || q.question_en || q.question_zh || "Câu hỏi";
-const getOptionText = (opt: any) =>
-  opt.option_vi || opt.option_en || opt.option_zh || "Lựa chọn";
-
 export default function ExamTaking() {
   const { sessionId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
+
+  const getQuestionText = (q: ExamQuestion) =>
+    q.question_vi || q.question_en || q.question_zh || t('examTaking.questionFallback');
+  const getOptionText = (opt: any) =>
+    opt.option_vi || opt.option_en || opt.option_zh || t('examTaking.optionFallback');
 
   const parsedSessionId = Number(sessionId);
   const planId = searchParams.get("planId")
@@ -89,6 +89,13 @@ export default function ExamTaking() {
 
   const isUrgent = timeLeft <= 300;
 
+  const getSessionName = () => {
+    const lang = localStorage.getItem('i18nextLng') || 'vi';
+    if (lang === 'en') return session.name_en || session.name_vi || session.name_zh || t('examTaking.sessionFallback');
+    if (lang === 'zh') return session.name_zh || session.name_vi || session.name_en || t('examTaking.sessionFallback');
+    return session.name_vi || session.name_en || session.name_zh || t('examTaking.sessionFallback');
+  };
+
   const handleSubmitExam = async () => {
     if (!attemptId || submitting) return;
     try {
@@ -97,7 +104,7 @@ export default function ExamTaking() {
       setResult(submitResult);
       setResultOpen(true);
     } catch (error: any) {
-      message.error(error?.response?.data?.message || "Không thể nộp bài thi");
+      message.error(error?.response?.data?.message || t('examTaking.errors.submitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -135,16 +142,16 @@ export default function ExamTaking() {
         });
         setResultOpen(true);
         message.error(
-          "Bạn đã vi phạm chống gian lận 3/3. Hệ thống tự động kết thúc bài thi.",
+          t('examTaking.errors.autoTerminatedForCheat'),
         );
       } else {
         message.warning(
-          `Cảnh báo gian lận ${data.cheatWarnings || 0}/3. Qua 3 lần sẽ bị kết thúc bài thi.`,
+          t('examTaking.errors.cheatWarning', { count: data.cheatWarnings || 0 }),
         );
       }
     } catch (error: any) {
       message.error(
-        error?.response?.data?.message || "Không thể ghi nhận vi phạm",
+        error?.response?.data?.message || t('examTaking.errors.cheatReportFailed'),
       );
     } finally {
       setReportingCheat(false);
@@ -157,7 +164,7 @@ export default function ExamTaking() {
       await document.documentElement.requestFullscreen();
       return true;
     } catch {
-      message.error("Không thể vào chế độ toàn màn hình. Vui lòng thử lại.");
+      message.error(t('examTaking.errors.fullscreenFailed'));
       return false;
     }
   };
@@ -172,7 +179,7 @@ export default function ExamTaking() {
   useEffect(() => {
     const bootstrap = async () => {
       if (!parsedSessionId || Number.isNaN(parsedSessionId)) {
-        message.error("Kỳ thi không hợp lệ");
+        message.error(t('examTaking.errors.invalidSession'));
         navigate("/profile");
         return;
       }
@@ -195,7 +202,7 @@ export default function ExamTaking() {
         }
       } catch (error: any) {
         message.error(
-          error?.response?.data?.message || "Không thể bắt đầu kỳ thi",
+          error?.response?.data?.message || t('examTaking.errors.startFailed'),
         );
         navigate("/profile");
       } finally {
@@ -251,7 +258,7 @@ export default function ExamTaking() {
       await saveExamAnswer(attemptId, questionId, answerValue);
     } catch (error: any) {
       message.error(
-        error?.response?.data?.message || "Không thể lưu câu trả lời",
+        error?.response?.data?.message || t('examTaking.errors.saveAnswerFailed'),
       );
     }
   };
@@ -389,7 +396,7 @@ export default function ExamTaking() {
                     : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                {val === "true" ? "✓ Đúng" : "✗ Sai"}
+                {val === "true" ? t('examTaking.trueLabel') : t('examTaking.falseLabel')}
               </button>
             );
           })}
@@ -400,7 +407,7 @@ export default function ExamTaking() {
     return (
       <input
         className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 bg-white outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
-        placeholder="Nhập đáp án..."
+        placeholder={t('examTaking.answerPlaceholder')}
         value={typeof value === "string" ? value : ""}
         onChange={(e) => updateAnswer(question.id, e.target.value)}
       />
@@ -418,7 +425,7 @@ export default function ExamTaking() {
   if (!session || !attemptId || questions.length === 0) {
     return (
       <div className="min-h-screen bg-slate-50 p-4">
-        <Alert type="error" message="Không tìm thấy dữ liệu kỳ thi" />
+        <Alert type="error" message={t('examTaking.errors.noExamData')} />
       </div>
     );
   }
@@ -434,10 +441,10 @@ export default function ExamTaking() {
               <FileTextOutlined className="text-blue-600 text-lg shrink-0" />
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-800 truncate leading-tight">
-                  {session.name_vi}
+                  {getSessionName()}
                 </p>
                 <p className="text-xs text-slate-400 leading-tight">
-                  Điểm đạt: {session.passingScore}%
+                  {t('examTaking.passingScore', { score: session.passingScore })}
                 </p>
               </div>
             </div>
@@ -463,7 +470,7 @@ export default function ExamTaking() {
                 disabled={submitting}
                 className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-sm font-semibold rounded-full px-4 py-1.5 border-none cursor-pointer transition-all disabled:opacity-60"
               >
-                {submitting ? "..." : "Nộp bài"}
+                {submitting ? '...' : t('examTaking.submit')}
               </button>
             </div>
           </div>
@@ -477,7 +484,7 @@ export default function ExamTaking() {
               />
             </div>
             <span className="text-xs text-slate-400 shrink-0">
-              {answeredCount}/{questions.length} câu
+              {t('examTaking.answeredCount', { answered: answeredCount, total: questions.length })}
             </span>
           </div>
         </div>
@@ -492,7 +499,7 @@ export default function ExamTaking() {
             }`}
           >
             <SafetyOutlined />
-            Cảnh báo gian lận: {cheatWarnings}/3 lần
+            {t('examTaking.cheatWarningsBanner', { count: cheatWarnings })}
           </div>
         )}
       </div>
@@ -503,32 +510,32 @@ export default function ExamTaking() {
         {!examStarted && (
           <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-3">
             <p className="font-semibold text-slate-800 text-base mb-1">
-              Sẵn sàng vào bài thi
+              {t('examTaking.readyTitle')}
             </p>
             <p className="text-sm text-slate-500 mb-3">
               {session.requireFullscreen
-                ? 'Kỳ thi bắt buộc toàn màn hình. Nhấn "Bắt đầu thi" để kích hoạt.'
-                : 'Nhấn "Bắt đầu thi" để vào bài làm.'}
+                ? t('examTaking.readyRequireFullscreen')
+                : t('examTaking.readyNormal')}
             </p>
             <div className="flex flex-wrap gap-2 mb-4">
               <Tag color={session.requireFullscreen ? "blue" : "default"}>
-                Toàn màn hình: {session.requireFullscreen ? "Bật" : "Tắt"}
+                {t('examTaking.fullscreen')}: {session.requireFullscreen ? t('examTaking.on') : t('examTaking.off')}
               </Tag>
               <Tag color={session.antiCheat ? "red" : "default"}>
-                Chống gian lận: {session.antiCheat ? "Bật" : "Tắt"}
+                {t('examTaking.antiCheat')}: {session.antiCheat ? t('examTaking.on') : t('examTaking.off')}
               </Tag>
               <Tag color={session.detectTabSwitch ? "orange" : "default"}>
-                Phát hiện đổi tab: {session.detectTabSwitch ? "Bật" : "Tắt"}
+                {t('examTaking.detectTab')}: {session.detectTabSwitch ? t('examTaking.on') : t('examTaking.off')}
               </Tag>
               <Tag color={session.shuffleQuestions ? "purple" : "default"}>
-                Xáo trộn: {session.shuffleQuestions ? "Bật" : "Tắt"}
+                {t('examTaking.shuffle')}: {session.shuffleQuestions ? t('examTaking.on') : t('examTaking.off')}
               </Tag>
             </div>
             <button
               onClick={startExamNow}
               className="w-full bg-blue-600 text-white font-semibold rounded-xl py-3 text-sm border-none cursor-pointer hover:bg-blue-700 active:scale-[0.99] transition-all"
             >
-              Bắt đầu thi
+              {t('examTaking.startExam')}
             </button>
           </div>
         )}
@@ -537,16 +544,16 @@ export default function ExamTaking() {
         {fullscreenInterrupted && session.requireFullscreen && examStarted && (
           <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-3">
             <p className="font-semibold text-red-700 text-sm mb-1">
-              Bạn đã thoát toàn màn hình
+              {t('examTaking.leftFullscreenTitle')}
             </p>
             <p className="text-xs text-red-500 mb-3">
-              Vui lòng quay lại toàn màn hình để tiếp tục bài thi.
+              {t('examTaking.leftFullscreenDesc')}
             </p>
             <button
               onClick={startExamNow}
               className="bg-red-600 text-white text-sm font-medium rounded-xl px-4 py-2 border-none cursor-pointer hover:bg-red-700 transition-all"
             >
-              Quay lại toàn màn hình
+              {t('examTaking.backToFullscreen')}
             </button>
           </div>
         )}
@@ -575,14 +582,14 @@ export default function ExamTaking() {
                             answered ? "text-green-600" : "text-amber-600"
                           }`}
                         >
-                          Câu {index + 1}
+                          {t('examTaking.questionNumber', { index: index + 1 })}
                         </span>
                         {answered && (
                           <CheckCircleOutlined className="text-green-500 text-xs" />
                         )}
                       </div>
                       <span className="text-xs bg-blue-50 text-blue-700 font-semibold rounded-lg px-2 py-0.5 shrink-0">
-                        +{Math.round(100 / questions.length)} điểm
+                        {t('examTaking.points', { points: Math.round(100 / questions.length) })}
                       </span>
                     </div>
 
@@ -609,13 +616,13 @@ export default function ExamTaking() {
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-green-400 block" />
               <span className="text-xs text-slate-500">
-                {answeredCount} đã trả lời
+                {t('examTaking.answeredChip', { count: answeredCount })}
               </span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
               <span className="text-xs text-slate-500">
-                {questions.length - answeredCount} còn lại
+                {t('examTaking.remainingChip', { count: questions.length - answeredCount })}
               </span>
             </div>
           </div>
@@ -648,13 +655,13 @@ export default function ExamTaking() {
 
       {/* ── Result Modal ── */}
       <Modal
-        title="Kết quả bài thi"
+        title={t('examTaking.resultTitle')}
         open={resultOpen}
         onCancel={() => setResultOpen(false)}
         width={520}
         footer={[
           <Button key="profile" onClick={() => navigate("/profile")}>
-            Về hồ sơ của tôi
+            {t('examTaking.backProfile')}
           </Button>,
         ]}
       >
@@ -664,13 +671,18 @@ export default function ExamTaking() {
               type={result.passed && !result.isFraud ? "success" : "error"}
               message={
                 result.isFraud
-                  ? "Bài thi bị đánh dấu gian lận"
+                  ? t('examTaking.resultFraud')
                   : result.passed
-                    ? "Bạn đã vượt qua kỳ thi!"
-                    : "Bạn chưa đạt điểm qua"
+                    ? t('examTaking.resultPassed')
+                    : t('examTaking.resultFailed')
               }
               description={
-                `Điểm: ${result.score} · Đúng: ${result.correctCount} · Sai: ${result.wrongCount} · Bỏ trống: ${result.unansweredCount}`
+                t('examTaking.resultSummary', {
+                  score: result.score,
+                  correct: result.correctCount,
+                  wrong: result.wrongCount,
+                  unanswered: result.unansweredCount,
+                })
               }
             />
 
@@ -698,21 +710,21 @@ export default function ExamTaking() {
                     }}
                   >
                     <Text strong style={{ fontSize: 13 }}>
-                      Câu {index + 1}: {detail.question}
+                      {t('examTaking.questionNumber', { index: index + 1 })}: {detail.question}
                     </Text>
                     <div style={{ marginTop: 6 }}>
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        Trả lời:{" "}
+                        {t('examTaking.answerLabel')}{" "}
                       </Text>
                       <Text style={{ fontSize: 12 }}>
                         {Array.isArray(detail.userAnswer)
                           ? detail.userAnswer.join(", ")
-                          : String(detail.userAnswer ?? "Bỏ trống")}
+                          : String(detail.userAnswer ?? t('examTaking.blank'))}
                       </Text>
                     </div>
                     <div>
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        Đáp án đúng:{" "}
+                        {t('examTaking.correctAnswerLabel')}{" "}
                       </Text>
                       <Text style={{ fontSize: 12 }}>
                         {Array.isArray(detail.correctAnswer)
@@ -731,10 +743,10 @@ export default function ExamTaking() {
                       style={{ marginTop: 6 }}
                     >
                       {detail.correct
-                        ? "Đúng"
+                        ? t('examTaking.correct')
                         : detail.answered
-                          ? "Sai"
-                          : "Bỏ trống"}
+                          ? t('examTaking.wrong')
+                          : t('examTaking.blank')}
                     </Tag>
                   </Card>
                 ))}

@@ -20,7 +20,7 @@ export const getLessonProgress = async (req: Request, res: Response): Promise<vo
     if (!lessonId || !userId) {
       res.status(400).json({
         success: false,
-        message: "Invalid lesson ID or user not authenticated",
+        message: req.t('INVALID_LESSON_OR_AUTH'),
       });
       return;
     }
@@ -44,7 +44,7 @@ export const getLessonProgress = async (req: Request, res: Response): Promise<vo
     console.error("Get lesson progress error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to get progress",
+      message: error instanceof Error ? error.message : req.t('FAILED_GET_PROGRESS'),
     });
   }
 };
@@ -60,7 +60,7 @@ export const getCourseProgress = async (req: Request, res: Response): Promise<vo
     if (!courseId || !userId) {
       res.status(400).json({
         success: false,
-        message: "Invalid course ID or user not authenticated",
+        message: req.t('INVALID_COURSE_OR_AUTH'),
       });
       return;
     }
@@ -120,7 +120,7 @@ const totalVideos = courseVideos.length;
     console.error("Get course progress error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to get progress",
+      message: error instanceof Error ? error.message : req.t('FAILED_GET_PROGRESS'),
     });
   }
 };
@@ -135,7 +135,7 @@ export const getMyProgress = async (req: Request, res: Response): Promise<void> 
     if (!userId) {
       res.status(401).json({
         success: false,
-        message: "User not authenticated",
+        message: req.t('AUTH_REQUIRED'),
       });
       return;
     }
@@ -166,7 +166,7 @@ export const getMyProgress = async (req: Request, res: Response): Promise<void> 
     console.error("Get my progress error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to get progress",
+      message: error instanceof Error ? error.message : req.t('FAILED_GET_PROGRESS'),
     });
   }
 };
@@ -182,7 +182,7 @@ export const updateProgress = async (req: Request, res: Response): Promise<void>
     if (!lessonId || !userId) {
       res.status(400).json({
         success: false,
-        message: "Lesson ID and authentication required",
+        message: req.t('LESSON_ID_AUTH_REQUIRED'),
       });
       return;
     }
@@ -195,7 +195,7 @@ export const updateProgress = async (req: Request, res: Response): Promise<void>
 if (!lesson) {
       res.status(404).json({
         success: false,
-        message: "Lesson not found",
+        message: req.t('LESSON_NOT_FOUND'),
       });
       return;
     }
@@ -232,7 +232,7 @@ if (!lesson) {
     console.error("Update progress error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to update progress",
+      message: error instanceof Error ? error.message : req.t('FAILED_UPDATE_PROGRESS'),
     });
   }
 };
@@ -248,7 +248,7 @@ export const markLessonCompleted = async (req: Request, res: Response): Promise<
     if (!lessonId || !userId) {
       res.status(400).json({
         success: false,
-        message: "Lesson ID and authentication required",
+        message: req.t('LESSON_ID_AUTH_REQUIRED'),
       });
       return;
     }
@@ -262,7 +262,7 @@ export const markLessonCompleted = async (req: Request, res: Response): Promise<
 if (!lesson) {
       res.status(404).json({
         success: false,
-        message: "Lesson not found",
+        message: req.t('LESSON_NOT_FOUND'),
       });
       return;
     }
@@ -299,7 +299,7 @@ if (!lesson) {
     console.error("Mark completed error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to mark completed",
+      message: error instanceof Error ? error.message : req.t('FAILED_MARK_COMPLETED'),
     });
   }
 };
@@ -314,7 +314,7 @@ export const getMyAcademyCourses = async (req: Request, res: Response): Promise<
     if (!userId) {
       res.status(401).json({
         success: false,
-        message: "User not authenticated",
+        message: req.t('AUTH_REQUIRED'),
       });
       return;
     }
@@ -372,7 +372,7 @@ export const getMyAcademyCourses = async (req: Request, res: Response): Promise<
     console.error("Get academy courses error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to get courses",
+      message: error instanceof Error ? error.message : req.t('FAILED_GET_COURSES'),
     });
   }
 };
@@ -387,7 +387,7 @@ export const getMyStats = async (req: Request, res: Response): Promise<void> => 
     if (!userId) {
       res.status(401).json({
         success: false,
-        message: "User not authenticated",
+        message: req.t('AUTH_REQUIRED'),
       });
       return;
     }
@@ -597,7 +597,7 @@ export const getMyStats = async (req: Request, res: Response): Promise<void> => 
     console.error("Get my stats error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to get stats",
+      message: error instanceof Error ? error.message : req.t('FAILED_GET_STATS'),
     });
   }
 };
@@ -612,7 +612,7 @@ export const getWatchHistory = async (req: Request, res: Response): Promise<void
     if (!userId) {
       res.status(401).json({
         success: false,
-        message: "User not authenticated",
+        message: req.t('AUTH_REQUIRED'),
       });
       return;
     }
@@ -691,7 +691,7 @@ export const getWatchHistory = async (req: Request, res: Response): Promise<void
     console.error("Get watch history error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to get history",
+      message: error instanceof Error ? error.message : req.t('FAILED_GET_HISTORY'),
     });
   }
 };
@@ -705,7 +705,7 @@ export const toggleVideoLike = async (req: Request, res: Response): Promise<void
     const userId = (req as any).user?.id;
 
     if (!videoId || !userId) {
-      res.status(400).json({ success: false, message: "Video ID and authentication required" });
+      res.status(400).json({ success: false, message: req.t('VIDEO_ID_AUTH_REQUIRED') });
       return;
     }
 
@@ -726,7 +726,7 @@ export const toggleVideoLike = async (req: Request, res: Response): Promise<void
     console.error("Toggle video like error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to toggle like",
+      message: error instanceof Error ? error.message : req.t('FAILED_TOGGLE_LIKE'),
     });
   }
 };
@@ -740,7 +740,7 @@ export const getVideoLikeStatus = async (req: Request, res: Response): Promise<v
     const userId = (req as any).user?.id;
 
     if (!videoId || !userId) {
-      res.status(400).json({ success: false, message: "Invalid video ID or not authenticated" });
+      res.status(400).json({ success: false, message: req.t('INVALID_VIDEO_OR_AUTH') });
       return;
     }
 
@@ -752,7 +752,7 @@ export const getVideoLikeStatus = async (req: Request, res: Response): Promise<v
     res.json({ success: true, liked: !!like, likeCount });
   } catch (error) {
     console.error("Get video like status error:", error);
-    res.status(500).json({ success: false, message: "Failed to get like status" });
+    res.status(500).json({ success: false, message: req.t('FAILED_GET_LIKE_STATUS') });
   }
 };
 
@@ -764,7 +764,7 @@ export const getMyLikedVideos = async (req: Request, res: Response): Promise<voi
     const userId = (req as any).user?.id;
 
     if (!userId) {
-      res.status(401).json({ success: false, message: "User not authenticated" });
+      res.status(401).json({ success: false, message: req.t('AUTH_REQUIRED') });
       return;
     }
 
@@ -833,6 +833,6 @@ export const getMyLikedVideos = async (req: Request, res: Response): Promise<voi
     res.json({ success: true, data: result });
   } catch (error) {
     console.error("Get liked videos error:", error);
-    res.status(500).json({ success: false, message: "Failed to get liked videos" });
+    res.status(500).json({ success: false, message: req.t('FAILED_GET_LIKED_VIDEOS') });
   }
 };

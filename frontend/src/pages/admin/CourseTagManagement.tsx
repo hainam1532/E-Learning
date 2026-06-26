@@ -8,7 +8,6 @@ import {
   message,
   Popconfirm,
   Space,
-  Tag,
   Typography,
 } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from "@ant-design/icons";
@@ -47,14 +46,6 @@ export default function CourseTagManagement() {
   useEffect(() => {
     fetchTags();
   }, []);
-
-  // Get localized name based on current language
-  const getLocalizedName = (item: CourseTag) => {
-    const lang = localStorage.getItem("i18nextLng") || "vi";
-    if (lang === "en") return item.name_en || item.name_vi || "";
-    if (lang === "zh") return item.name_zh || item.name_vi || "";
-    return item.name_vi || "";
-  };
 
   // Handle add new tag
   const handleAdd = () => {

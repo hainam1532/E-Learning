@@ -32,6 +32,7 @@ import ExamPaperManagement from "../pages/admin/ExamPaperManagement";
 import ExamSessionManagement from "../pages/admin/ExamSessionManagement";
 import ReportsOverview from "../pages/admin/ReportsOverview";
 import ReportsTime from "../pages/admin/ReportsTime";
+import i18n from "../utils/i18n";
 
 const routerBasenameRaw = (import.meta.env.VITE_ROUTER_BASENAME || '/').trim();
 const routerBasename = routerBasenameRaw === '/'
@@ -43,7 +44,7 @@ const routerBasename = routerBasenameRaw === '/'
 const PlaceholderPage = ({ title }: { title: string }) => (
   <div className="bg-white p-6 rounded-2xl border border-slate-200/50 shadow-sm">
     <h2 className="text-xl font-bold text-slate-800 mb-4">{title}</h2>
-    <p className="text-slate-500">Chức năng đang được phát triển.</p>
+    <p className="text-slate-500">{i18n.t('routePlaceholder.underDevelopment')}</p>
   </div>
 );
 
@@ -187,7 +188,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "training/locations",
-            element: <PlaceholderPage title="Địa điểm đào tạo" />,
+            element: <PlaceholderPage title={i18n.t('routePlaceholder.trainingLocations')} />,
           },
           {
             path: "training/plans",

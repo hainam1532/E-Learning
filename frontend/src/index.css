@@ -1,5 +1,23 @@
 @import "tailwindcss";
 
+/* Prevent horizontal scroll on mobile - fix layout shift */
+html, body {
+  overflow-x: hidden;
+}
+
+/* Keep vertical scroll allowed - touch-action allows vertical pan */
+html, body {
+  touch-action: manipulation;
+}
+
+/* Mobile-specific scroll prevention */
+@media (max-width: 768px) {
+  /* Only prevent horizontal scroll, allow vertical */
+  html, body {
+    overflow-x: hidden;
+  }
+}
+
 /* Custom pulse animation for video playing indicator */
 @keyframes video-pulse {
     0%, 100% {

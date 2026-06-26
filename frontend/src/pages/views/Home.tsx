@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getFeaturedCourses, getHomeSpecialTopics } from '../../services/course';
 import type { Course, Academy, SpecialTopic } from '../../services/course';
+import backgroundImage from '../../../public/photoBG.avif';
 
 export default function Home() {
   const { t } = useTranslation();
@@ -147,7 +148,7 @@ export default function Home() {
           <div className="absolute -top-12 -left-12 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
           <div className="absolute -bottom-12 -right-12 w-64 h-64 bg-indigo-500/15 rounded-full blur-3xl"></div>
           <img
-            src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80"
+            src={backgroundImage}
             alt="Students collaborating"
             className="rounded-2xl shadow-xl w-full object-cover aspect-4/3 max-h-105 border border-white/10"
           />

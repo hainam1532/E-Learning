@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, message, Popconfirm, Space, Tag, Switch, Select, Avatar } from 'antd';
+import { Table, Button, Modal, Form, Input, message, Popconfirm, Space, Tag, Switch, Select } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, UserAddOutlined, UserDeleteOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { authGet } from '../../services/auth/auth.get';

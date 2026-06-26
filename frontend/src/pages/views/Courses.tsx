@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, type Key } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, Input, Tag, Tree, Spin, Empty, Badge, Button, Drawer, Select } from 'antd';
 import { SearchOutlined, BookOutlined, HeartOutlined, HomeOutlined, AppstoreOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { getCourses, getCoursesByAcademy, getCourseTags, type Course, type CourseTag, type Academy } from '../../services/course';
 import { getCategories, getCoursesByCategory, type CourseCategory } from '../../services/category';
 import { authGet } from '../../services/auth/auth.get';
@@ -9,6 +10,7 @@ import { authGet } from '../../services/auth/auth.get';
 export default function Courses() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { t } = useTranslation();
   
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(false);
@@ -31,6 +33,13 @@ export default function Courses() {
     if (lang === 'en') return academy.name_en || academy.name_vi || academy.code;
     if (lang === 'zh') return academy.name_zh || academy.name_vi || academy.code;
     return academy.name_vi || academy.name_en || academy.code;
+  };
+
+  const getTagName = (tag: CourseTag): string => {
+    const lang = localStorage.getItem('i18nextLng') || 'vi';
+    if (lang === 'en') return tag.name_en || tag.name_vi || tag.name_zh || '-';
+    if (lang === 'zh') return tag.name_zh || tag.name_vi || tag.name_en || '-';
+    return tag.name_vi || tag.name_en || tag.name_zh || '-';
   };
 
   useEffect(() => {
@@ -131,9 +140,9 @@ export default function Courses() {
   // Helper functions
   const getCourseTitle = (course: Course): string => {
     const lang = localStorage.getItem('i18nextLng') || 'vi';
-    if (lang === 'en') return course.title_en || course.title_vi || course.title_zh || 'Untitled Course';
-    if (lang === 'zh') return course.title_zh || course.title_vi || course.title_en || 'Untitled Course';
-    return course.title_vi || course.title_en || course.title_zh || 'Untitled Course';
+    if (lang === 'en') return course.title_en || course.title_vi || course.title_zh || t('coursesPage.untitledCourse');
+    if (lang === 'zh') return course.title_zh || course.title_vi || course.title_en || t('coursesPage.untitledCourse');
+    return course.title_vi || course.title_en || course.title_zh || t('coursesPage.untitledCourse');
   };
 
   const getCategoryName = (category: CourseCategory): string => {
@@ -169,7 +178,7 @@ export default function Courses() {
         title: (
           <div className="flex items-center gap-2 py-1">
             <HomeOutlined />
-            <span>Tất cả danh mục</span>
+            <span>{t('coursesPage.allCategories')}</span>
           </div>
         ),
         children: buildTree(categories, null),
@@ -195,12 +204,12 @@ export default function Courses() {
 
   const renderCategoryTree = () => (
     <div className="bg-white rounded-2xl border border-slate-200 p-4 lg:sticky lg:top-24 max-h-[70vh] overflow-auto">
-      <h3 className="font-bold text-slate-800 mb-4">Danh mục khóa học</h3>
+      <h3 className="font-bold text-slate-800 mb-4">{t('coursesPage.categoryTitle')}</h3>
       <Select
         value={selectedAcademyId}
         onChange={(value) => setSelectedAcademyId(value)}
         allowClear
-        placeholder="Chọn học viện"
+        placeholder={t('coursesPage.selectAcademy')}
         className="w-full mb-4"
         popupMatchSelectWidth={false}
         options={academies.map((academy) => ({
@@ -217,7 +226,7 @@ export default function Courses() {
           className="bg-transparent"
         />
       ) : (
-        <Empty description="Chưa có danh mục" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty description={t('coursesPage.noCategories')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       )}
     </div>
   );
@@ -233,10 +242,10 @@ export default function Courses() {
       <div className="w-full flex-1 space-y-6">
         <div className="lg:hidden">
           <Button icon={<AppstoreOutlined />} onClick={() => setCategoryDrawerOpen(true)}>
-            Danh mục khóa học
+            {t('coursesPage.categoryTitle')}
           </Button>
           <Drawer
-            title="Danh mục khóa học"
+            title={t('coursesPage.categoryTitle')}
             placement="left"
             open={categoryDrawerOpen}
             onClose={() => setCategoryDrawerOpen(false)}
@@ -254,7 +263,7 @@ export default function Courses() {
               className={`cursor-pointer px-3 py-1 ${selectedTagId === null ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               onClick={() => setSelectedTagId(null)}
             >
-              Tất cả
+              {t('coursesPage.allTags')}
             </Tag>
             {tags.map((tag) => (
               <Tag
@@ -262,14 +271,14 @@ export default function Courses() {
                 className={`cursor-pointer px-3 py-1 ${selectedTagId === tag.id ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                 onClick={() => setSelectedTagId(tag.id)}
               >
-                {tag.name_vi}
+                {getTagName(tag)}
               </Tag>
             ))}
             </div>
 
             <div className="w-full lg:w-80">
               <Input
-                placeholder="Tìm tên khóa học..."
+                placeholder={t('coursesPage.searchPlaceholder')}
                 prefix={<SearchOutlined className="text-slate-400" />}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -281,7 +290,7 @@ export default function Courses() {
 
           {/* Results count */}
           <div className="text-sm text-slate-500">
-            Tìm thấy {filteredCourses.length} khóa học
+            {t('coursesPage.foundCourses', { count: filteredCourses.length })}
           </div>
         </div>
 
@@ -292,7 +301,7 @@ export default function Courses() {
           </div>
         ) : filteredCourses.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-            <Empty description="Không có khóa học nào phù hợp" />
+            <Empty description={t('coursesPage.noMatchingCourses')} />
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -316,7 +325,7 @@ export default function Courses() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       {course.academy && (
-                        <Badge status="processing" text={course.academy.name_vi} className="text-xs" />
+                        <Badge status="processing" text={getAcademyName(course.academy)} className="text-xs" />
                       )}
                       {course.language && (
                         <>
@@ -330,13 +339,13 @@ export default function Courses() {
                     </h3>
                     <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                       <div className="flex items-center gap-3 text-slate-500 text-sm">
-                        <span>{course.courseVideos?.length || 0} videos</span>
+                        <span>{t('coursesPage.videosCount', { count: course.courseVideos?.length || 0 })}</span>
                         <span className="inline-flex items-center gap-1 text-rose-500">
                           <HeartOutlined /> {course.likeCount || 0}
                         </span>
                       </div>
                       <Tag color="blue" className="cursor-pointer">
-                        Học ngay
+                        {t('coursesPage.learnNow')}
                       </Tag>
                     </div>
                   </div>

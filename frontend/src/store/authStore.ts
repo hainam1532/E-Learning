@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AuthState, User, UserRole } from '../types/auth';
+import type { AuthState, User } from '../types/auth';
 import { authPost } from '../services/auth';
 
 const getInitialUser = (): User | null => {
@@ -22,7 +22,7 @@ const getInitialRefreshToken = (): string | null => {
   return localStorage.getItem('el_refreshToken');
 };
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: getInitialUser(),
   token: getInitialToken(),
   refreshToken: getInitialRefreshToken(),
@@ -65,7 +65,11 @@ const { user, accessToken, refreshToken } = response.data;
       set({ isLoading: false });
       throw error;
     }
-},
+  },
+
+  register: async (data) => {
+    await authPost.createUser(data);
+  },
 
   logout: async () => {
     try {

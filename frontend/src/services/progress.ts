@@ -50,11 +50,6 @@ interface ProgressListResponse {
   data: LearningProgress[];
 }
 
-interface ApiResponse {
-  success: boolean;
-  message: string;
-}
-
 // Get progress for a specific lesson
 export async function getLessonProgress(lessonId: number): Promise<LearningProgress | null> {
   try {

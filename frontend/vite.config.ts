@@ -14,10 +14,10 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
+        includeAssets: ['apacheLogo.png', 'pwa-192x192.png', 'pwa-512x512.png'],
         manifest: {
           name: 'E+ Learning',
-          short_name: 'E+ Learn',
+          short_name: 'E+ Learning',
           description: 'Nền tảng đào tạo trực tuyến E+ Learning',
           theme_color: '#0056D2',
           background_color: '#FFFFFF',
@@ -41,7 +41,7 @@ export default defineConfig(({ mode }) => {
               purpose: 'any'
             },
             {
-              src: 'pwa-512x512-maskable.png',
+              src: 'pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'
@@ -49,6 +49,7 @@ export default defineConfig(({ mode }) => {
           ]
         },
         workbox: {
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,svg,png,ico,json,woff2}'],
           runtimeCaching: [
             {

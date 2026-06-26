@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Input, Select, message, Popconfirm, Tag, Space, Upload } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { authGet } from '../../services/auth/auth.get';
 import { authPost } from '../../services/auth/auth.post';
-import * as XLSX from 'xlsx';
 
 interface Department {
   id: number;
@@ -54,7 +53,6 @@ export default function UserManagement() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [form] = Form.useForm();
-  const fileInputRef = useRef<any>(null);
 
   const fetchUsers = async () => {
     setLoading(true);

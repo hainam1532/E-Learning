@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, message, Popconfirm, Space, Tag } from 'antd';
+import { Table, Button, Modal, Form, Input, message, Popconfirm, Space } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, KeyOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { authGet } from '../../services/auth/auth.get';
@@ -55,7 +55,7 @@ export default function SystemConfig() {
     setModalVisible(true);
   };
 
-  const handleDelete = async (id: number, key: string) => {
+  const handleDelete = async (key: string) => {
     try {
       await authPost.deleteConfig(key);
       message.success(t('config.deleteSuccess') || 'Config deleted successfully');
@@ -114,7 +114,7 @@ export default function SystemConfig() {
           />
           <Popconfirm
             title={t('config.confirmDelete') || 'Are you sure you want to delete this config?'}
-            onConfirm={() => handleDelete(record.id, record.configKey)}
+            onConfirm={() => handleDelete(record.configKey)}
             okText={t('common.yes') || 'Yes'}
             cancelText={t('common.no') || 'No'}
           >

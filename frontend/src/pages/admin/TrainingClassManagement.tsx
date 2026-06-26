@@ -26,17 +26,12 @@ import {
   DeleteOutlined,
   ReloadOutlined,
   UploadOutlined,
-  UserAddOutlined,
   FileExcelOutlined,
   BookOutlined,
-  TeamOutlined,
   SolutionOutlined,
   InfoCircleOutlined,
-  BarChartOutlined,
-  LineChartOutlined,
   DownloadOutlined,
 } from '@ant-design/icons';
-import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
 import {
@@ -117,7 +112,6 @@ interface Department {
 }
 
 export default function TrainingClassManagement() {
-  const { t } = useTranslation();
   const [classes, setClasses] = useState<TrainingClass[]>([]);
   const [academies, setAcademies] = useState<Academy[]>([]);
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
@@ -375,9 +369,6 @@ export default function TrainingClassManagement() {
   };
 
   // Filter plans based on selected academy in Form
-  const selectedAcademyId = Form.useWatch('academyId', form);
-  const filteredPlans = plans.filter((p) => p.academyId === selectedAcademyId);
-
   // Find linked training plan of the class
   const classPlan = plans.find((p) => p.trainingClassId === editingClass?.id);
   const planCourses = classPlan?.resources?.filter((r) => r.type === 'COURSE') || [];
@@ -1038,7 +1029,7 @@ export default function TrainingClassManagement() {
                             document.body.removeChild(a);
                             window.URL.revokeObjectURL(url);
                             message.success('Đã tải template');
-                          }).catch((err) => {
+                          }).catch(() => {
                             message.error('Không thể tải template');
                           });
                         }

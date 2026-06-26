@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Empty, Input, Spin, Tag, Badge } from 'antd';
 import { SearchOutlined, HeartOutlined, TagsOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { getHomeSpecialTopics, type Course, type SpecialTopic } from '../../services/course';
 
 export default function Topics() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { t } = useTranslation();
   const [topics, setTopics] = useState<SpecialTopic[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
@@ -46,9 +48,9 @@ export default function Topics() {
 
   const getCourseTitle = (course: Course): string => {
     const lang = localStorage.getItem('i18nextLng') || 'vi';
-    if (lang === 'en') return course.title_en || course.title_vi || course.title_zh || 'Untitled Course';
-    if (lang === 'zh') return course.title_zh || course.title_vi || course.title_en || 'Untitled Course';
-    return course.title_vi || course.title_en || course.title_zh || 'Untitled Course';
+    if (lang === 'en') return course.title_en || course.title_vi || course.title_zh || t('topicsPage.untitledCourse');
+    if (lang === 'zh') return course.title_zh || course.title_vi || course.title_en || t('topicsPage.untitledCourse');
+    return course.title_vi || course.title_en || course.title_zh || t('topicsPage.untitledCourse');
   };
 
   const visibleCourses = useMemo(() => {
@@ -79,7 +81,7 @@ export default function Topics() {
               className={`cursor-pointer px-3 py-1 ${selectedTopicId === null ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               onClick={() => setSelectedTopicId(null)}
             >
-              Tất cả chủ đề
+              {t('topicsPage.allTopics')}
             </Tag>
             {topics.map((topic) => (
               <Tag
@@ -94,7 +96,7 @@ export default function Topics() {
 
           <div className="w-full lg:w-80">
             <Input
-              placeholder="Tìm khóa học trong chủ đề..."
+              placeholder={t('topicsPage.searchPlaceholder')}
               prefix={<SearchOutlined className="text-slate-400" />}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -104,7 +106,7 @@ export default function Topics() {
           </div>
         </div>
 
-        <div className="text-sm text-slate-500">Tìm thấy {visibleCourses.length} khóa học công khai</div>
+        <div className="text-sm text-slate-500">{t('topicsPage.foundPublicCourses', { count: visibleCourses.length })}</div>
       </div>
 
       {loading ? (
@@ -113,7 +115,7 @@ export default function Topics() {
         </div>
       ) : visibleCourses.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-          <Empty description="Không có khóa học phù hợp trong chủ đề" />
+          <Empty description={t('topicsPage.noMatchingCourses')} />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -140,7 +142,7 @@ export default function Topics() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center gap-1 text-xs text-indigo-600 font-semibold bg-indigo-50 px-2 py-1 rounded-full">
-                      <TagsOutlined /> Chủ đề
+                      <TagsOutlined /> {t('topicsPage.topicBadge')}
                     </span>
                     {course.academy && (
                       <Badge status="processing" text={course.academy.name_vi} className="text-xs" />
@@ -153,13 +155,13 @@ export default function Topics() {
 
                   <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                     <div className="flex items-center gap-3 text-slate-500 text-sm">
-                      <span>{course.courseVideos?.length || 0} videos</span>
+                      <span>{t('topicsPage.videosCount', { count: course.courseVideos?.length || 0 })}</span>
                       <span className="inline-flex items-center gap-1 text-rose-500">
                         <HeartOutlined /> {course.likeCount || 0}
                       </span>
                     </div>
                     <Tag color="blue" className="cursor-pointer">
-                      Học ngay
+                      {t('topicsPage.learnNow')}
                     </Tag>
                   </div>
                 </div>

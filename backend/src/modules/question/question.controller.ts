@@ -44,7 +44,7 @@ export const getQuestionCategories = async (req: Request, res: Response) => {
     res.json({ success: true, data: categories });
   } catch (error) {
     console.error("Error getting question categories:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch categories" });
+    res.status(500).json({ success: false, message: req.t('QUESTION_FETCH_CATEGORIES_FAILED') });
   }
 };
 
@@ -54,7 +54,7 @@ export const createQuestionCategory = async (req: Request, res: Response) => {
     const { name_vi, name_en, name_zh, description, academyId } = req.body;
 
     if (!academyId) {
-      return res.status(400).json({ success: false, message: "Academy is required" });
+      return res.status(400).json({ success: false, message: req.t('QUESTION_ACADEMY_REQUIRED') });
     }
 
     const category = await prisma.questionCategory.create({
@@ -73,7 +73,7 @@ export const createQuestionCategory = async (req: Request, res: Response) => {
     res.json({ success: true, data: category });
   } catch (error) {
     console.error("Error creating question category:", error);
-    res.status(500).json({ success: false, message: "Failed to create category" });
+    res.status(500).json({ success: false, message: req.t('QUESTION_CREATE_CATEGORY_FAILED') });
   }
 };
 
@@ -99,7 +99,7 @@ export const updateQuestionCategory = async (req: Request, res: Response) => {
     res.json({ success: true, data: category });
   } catch (error) {
     console.error("Error updating question category:", error);
-    res.status(500).json({ success: false, message: "Failed to update category" });
+    res.status(500).json({ success: false, message: req.t('QUESTION_UPDATE_CATEGORY_FAILED') });
   }
 };
 
@@ -112,10 +112,10 @@ export const deleteQuestionCategory = async (req: Request, res: Response) => {
       where: { id: Number(id) },
     });
 
-    res.json({ success: true, message: "Category deleted successfully" });
+    res.json({ success: true, message: req.t('QUESTION_CATEGORY_DELETE_SUCCESS') });
   } catch (error) {
     console.error("Error deleting question category:", error);
-    res.status(500).json({ success: false, message: "Failed to delete category" });
+    res.status(500).json({ success: false, message: req.t('QUESTION_DELETE_CATEGORY_FAILED') });
   }
 };
 
@@ -162,7 +162,7 @@ export const getQuestions = async (req: Request, res: Response) => {
     res.json({ success: true, data: questions });
   } catch (error) {
     console.error("Error getting questions:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch questions" });
+    res.status(500).json({ success: false, message: req.t('QUESTION_FETCH_QUESTIONS_FAILED') });
   }
 };
 
@@ -209,7 +209,7 @@ export const createQuestion = async (req: Request, res: Response) => {
     res.json({ success: true, data: question });
   } catch (error) {
     console.error("Error creating question:", error);
-    res.status(500).json({ success: false, message: "Failed to create question" });
+    res.status(500).json({ success: false, message: req.t('QUESTION_CREATE_FAILED') });
   }
 };
 
@@ -263,7 +263,7 @@ export const updateQuestion = async (req: Request, res: Response) => {
     res.json({ success: true, data: question });
   } catch (error) {
     console.error("Error updating question:", error);
-    res.status(500).json({ success: false, message: "Failed to update question" });
+    res.status(500).json({ success: false, message: req.t('QUESTION_UPDATE_FAILED') });
   }
 };
 
@@ -277,10 +277,10 @@ export const deleteQuestion = async (req: Request, res: Response) => {
       where: { id: Number(id) },
     });
 
-    res.json({ success: true, message: "Question deleted successfully" });
+    res.json({ success: true, message: req.t('QUESTION_DELETE_SUCCESS') });
   } catch (error) {
     console.error("Error deleting question:", error);
-    res.status(500).json({ success: false, message: "Failed to delete question" });
+    res.status(500).json({ success: false, message: req.t('QUESTION_DELETE_FAILED') });
   }
 };
 
@@ -290,11 +290,11 @@ export const uploadQuestionsFromExcel = async (req: Request, res: Response) => {
     const { categoryId } = req.body;
 
     if (!req.file) {
-      return res.status(400).json({ success: false, message: "No file uploaded" });
+      return res.status(400).json({ success: false, message: req.t('QUESTION_NO_FILE_UPLOADED') });
     }
 
     if (!categoryId) {
-      return res.status(400).json({ success: false, message: "Category ID is required" });
+      return res.status(400).json({ success: false, message: req.t('QUESTION_CATEGORY_ID_REQUIRED') });
     }
 
     // Read Excel file
@@ -304,7 +304,7 @@ export const uploadQuestionsFromExcel = async (req: Request, res: Response) => {
     const data = XLSX.utils.sheet_to_json(worksheet);
 
     if (!data || data.length === 0) {
-      return res.status(400).json({ success: false, message: "Excel file is empty" });
+      return res.status(400).json({ success: false, message: req.t('QUESTION_EXCEL_EMPTY') });
     }
 
     let createdCount = 0;
@@ -401,11 +401,11 @@ export const uploadQuestionsFromExcel = async (req: Request, res: Response) => {
         created: createdCount,
         errors,
       },
-      message: `Successfully imported ${createdCount} questions`,
+      message: req.t('QUESTION_IMPORT_SUCCESS'),
     });
   } catch (error) {
     console.error("Error uploading questions from Excel:", error);
-    res.status(500).json({ success: false, message: "Failed to upload questions" });
+    res.status(500).json({ success: false, message: req.t('QUESTION_UPLOAD_FAILED') });
   }
 };
 
@@ -457,7 +457,7 @@ export const getQuestionTemplate = async (req: Request, res: Response) => {
     res.send(buffer);
   } catch (error) {
     console.error("Error generating template:", error);
-    res.status(500).json({ success: false, message: "Failed to generate template" });
+    res.status(500).json({ success: false, message: req.t('QUESTION_TEMPLATE_FAILED') });
   }
 };
 

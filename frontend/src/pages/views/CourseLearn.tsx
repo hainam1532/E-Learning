@@ -26,7 +26,6 @@ import {
   FileProtectOutlined,
   ArrowLeftOutlined
 } from '@ant-design/icons';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getCourse, getCourseWithProgress } from '../../services/course';
 import { getCourseProgress, markLessonCompleted, toggleVideoLike, getVideoLikeStatus } from '../../services/progress';
 import { getMyTrainingPlans, markTrainingResourceCompleted, type UserTrainingPlan, type UserTrainingResource } from '../../services/training';
@@ -51,7 +50,7 @@ export default function CourseLearn() {
   const lessonIdFromQuery = searchParams.get('lessonId');
   const videoIdFromQuery = searchParams.get('videoId');
   const planIdFromQuery = searchParams.get('planId');
-  const { user, isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
 
   const [loading, setLoading] = useState(true);
   const [course, setCourse] = useState<Course | null>(null);

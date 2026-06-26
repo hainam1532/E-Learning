@@ -66,7 +66,7 @@ export const uploadDocument = async (
     if (!file) {
       res.status(400).json({
         success: false,
-        message: "No document file provided",
+        message: req.t('DOCUMENT_NO_FILE'),
       });
       return;
     }
@@ -103,7 +103,7 @@ const name = req.body.name as string | undefined;
 
     res.status(201).json({
       success: true,
-      message: "Document uploaded successfully",
+      message: req.t('DOCUMENT_UPLOAD_SUCCESS'),
       data: {
         id: document.id,
         name: document.name,
@@ -116,7 +116,7 @@ const name = req.body.name as string | undefined;
     console.error("Upload document error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Upload failed",
+      message: error instanceof Error ? error.message : req.t('DOCUMENT_UPLOAD_FAILED'),
     });
   }
 };
@@ -149,7 +149,7 @@ export const getDocuments = async (
     console.error("Get documents error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to get documents",
+      message: error instanceof Error ? error.message : req.t('DOCUMENT_GET_LIST_FAILED'),
     });
   }
 };
@@ -167,7 +167,7 @@ export const getDocument = async (
     if (id === null) {
       res.status(400).json({
         success: false,
-        message: "Invalid document ID",
+        message: req.t('DOCUMENT_INVALID_ID'),
       });
       return;
     }
@@ -179,7 +179,7 @@ export const getDocument = async (
     if (!document) {
       res.status(404).json({
         success: false,
-        message: "Document not found",
+        message: req.t('DOCUMENT_NOT_FOUND'),
       });
       return;
     }
@@ -195,7 +195,7 @@ export const getDocument = async (
     console.error("Get document error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to get document",
+      message: error instanceof Error ? error.message : req.t('DOCUMENT_GET_FAILED'),
     });
   }
 };
@@ -214,7 +214,7 @@ export const getDocumentContent = async (
     if (id === null) {
       res.status(400).json({
         success: false,
-        message: "Invalid document ID",
+        message: req.t('DOCUMENT_INVALID_ID'),
       });
       return;
     }
@@ -226,7 +226,7 @@ export const getDocumentContent = async (
     if (!document) {
       res.status(404).json({
         success: false,
-        message: "Document not found",
+        message: req.t('DOCUMENT_NOT_FOUND'),
       });
       return;
     }
@@ -261,7 +261,7 @@ export const getDocumentContent = async (
     objectStream.on("error", (error) => {
       console.error("Document stream error:", error);
       if (!res.headersSent) {
-        res.status(500).json({ success: false, message: "Failed to stream document" });
+        res.status(500).json({ success: false, message: req.t('DOCUMENT_STREAM_FAILED') });
       }
     });
 
@@ -270,7 +270,7 @@ export const getDocumentContent = async (
     console.error("Get document content error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to get document content",
+      message: error instanceof Error ? error.message : req.t('DOCUMENT_GET_CONTENT_FAILED'),
     });
   }
 };
@@ -288,7 +288,7 @@ export const deleteDocument = async (
     if (id === null) {
       res.status(400).json({
         success: false,
-        message: "Invalid document ID",
+        message: req.t('DOCUMENT_INVALID_ID'),
       });
       return;
     }
@@ -300,7 +300,7 @@ export const deleteDocument = async (
     if (!document) {
       res.status(404).json({
         success: false,
-        message: "Document not found",
+        message: req.t('DOCUMENT_NOT_FOUND'),
       });
       return;
     }
@@ -315,13 +315,13 @@ export const deleteDocument = async (
 
     res.json({
       success: true,
-      message: "Document deleted successfully",
+      message: req.t('DOCUMENT_DELETE_SUCCESS'),
     });
   } catch (error) {
     console.error("Delete document error:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to delete document",
+      message: error instanceof Error ? error.message : req.t('DOCUMENT_DELETE_FAILED'),
     });
   }
 };

@@ -1,0 +1,21 @@
+npm warn Unknown user config "...". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+[36mvite v8.0.16 [32mbuilding client environment for test...[36m[39m
+[2Ktransforming...✓ 4007 modules transformed.
+[31m✗[39m Build failed in 2.01s
+[31merror during build:
+Error: 
+  Configure "workbox.maximumFileSizeToCacheInBytes" to change the limit: the default value is 2 MiB.
+  Check https://vite-pwa-org.netlify.app/guide/faq.html#missing-assets-from-sw-precache-manifest for more information.
+  Assets exceeding the limit:
+  - assets/index-CjFG-RJO.js is 3.67 MB, and won't be precached.
+
+    at logWorkboxResult (file:///D:/React/E-Learning/frontend/node_modules/vite-plugin-pwa/dist/chunk-G4TAN34B.js:44:13)
+    at generateServiceWorker (file:///D:/React/E-Learning/frontend/node_modules/vite-plugin-pwa/dist/index.js:209:3)
+    at async _generateSW (file:///D:/React/E-Learning/frontend/node_modules/vite-plugin-pwa/dist/index.js:234:5)
+    at async PluginContextImpl.handler (file:///D:/React/E-Learning/frontend/node_modules/vite-plugin-pwa/dist/index.js:427:13)
+    at async plugin (file:///D:/React/E-Learning/frontend/node_modules/rolldown/dist/shared/bindingify-input-options-ClrST5Xx.mjs:1403:4)
+    at async plugin.<computed> (file:///D:/React/E-Learning/frontend/node_modules/rolldown/dist/shared/bindingify-input-options-ClrST5Xx.mjs:1625:12) {
+  code: 'PLUGIN_ERROR',
+  plugin: 'vite-plugin-pwa:build',
+  hook: 'closeBundle'
+}[39m

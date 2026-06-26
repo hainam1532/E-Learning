@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Result, Button } from 'antd';
 import apacheIcon from '../assets/apache.png';
+import { useTranslation } from 'react-i18next';
 
 // API Base URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -15,6 +16,7 @@ interface HealthResponse {
 }
 
 export default function HealthCheck({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const [healthStatus, setHealthStatus] = useState<HealthStatus>('checking');
   const [showLoading, setShowLoading] = useState(true);
 const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,7 +77,7 @@ if (healthStatus === 'checking' || showLoading) {
           {/* Rotating circle around icon */}
           <div className="absolute inset-0 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
           {/* Apache icon in center */}
-          <img src={apacheIcon} alt="Loading" className="w-12 h-12 object-contain" />
+          <img src={apacheIcon} alt={t('common.loading')} className="w-12 h-12 object-contain" />
         </div>
       </div>
     );
@@ -86,11 +88,11 @@ if (healthStatus === 'checking' || showLoading) {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <Result
           status="error"
-          title="Không thể kết nối máy chủ"
-          subTitle="Vui lòng kiểm tra kết nối mạng và API hoặc thử lại sau."
+          title={t('healthCheck.serverUnreachableTitle')}
+          subTitle={t('healthCheck.serverUnreachableSubTitle')}
           extra={
             <Button type="primary" onClick={() => window.location.reload()}>
-              Thử lại
+              {t('healthCheck.retry')}
             </Button>
           }
         />
@@ -103,11 +105,11 @@ if (healthStatus === 'checking' || showLoading) {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <Result
           status="warning"
-          title="Trang đang bảo trì"
-          subTitle="Hệ thống đang được bảo trì. Vui lòng thử lại sau."
+          title={t('healthCheck.maintenanceTitle')}
+          subTitle={t('healthCheck.maintenanceSubTitle')}
           extra={
             <Button type="primary" onClick={() => window.location.reload()}>
-              Thử lại
+              {t('healthCheck.retry')}
             </Button>
           }
         />

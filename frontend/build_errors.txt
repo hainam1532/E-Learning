@@ -1,0 +1,39 @@
+
+D:\React\E-Learning\frontend>npm run build:test   
+npm warn Unknown user config "...". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> frontend@0.0.0 build:test
+> tsc -b && vite build --mode test
+
+src/pages/admin/CourseManagement.tsx(54,9): error TS6133: 't' is declared but its value is never read.
+src/pages/admin/CourseManagement.tsx(681,47): error TS6133: 'index' is declared but its value is never read.
+src/pages/admin/CourseTagManagement.tsx(51,9): error TS6133: 'getLocalizedName' is declared but its value is never read.
+src/pages/admin/DocumentLibrary.tsx(79,10): error TS6133: 'uploadProgress' is declared but its value is never read.
+src/pages/admin/LecturerManagement.tsx(2,25): error TS6133: 'Modal' is declared but its value is never read.
+src/pages/admin/ReportsOverview.tsx(2,10): error TS6133: 'Button' is declared but its value is never read.
+src/pages/admin/ReportsOverview.tsx(2,33): error TS6133: 'Space' is declared but its value is never read.
+src/pages/admin/ReportsOverview.tsx(4,3): error TS6133: 'BarChartOutlined' is declared but its value is never read.
+src/pages/admin/ReportsTime.tsx(2,51): error TS6133: 'Tag' is declared but its value is never read.
+src/pages/admin/SystemConfig.tsx(2,73): error TS6133: 'Tag' is declared but its value is never read.
+src/pages/admin/SystemConfig.tsx(58,31): error TS6133: 'id' is declared but its value is never read.
+src/pages/admin/TrainingClassManagement.tsx(29,3): error TS6133: 'UserAddOutlined' is declared but its value is never read.
+src/pages/admin/TrainingClassManagement.tsx(32,3): error TS6133: 'TeamOutlined' is declared but its value is never read.
+src/pages/admin/TrainingClassManagement.tsx(35,3): error TS6133: 'BarChartOutlined' is declared but its value is never read.
+src/pages/admin/TrainingClassManagement.tsx(36,3): error TS6133: 'LineChartOutlined' is declared but its value is never read.
+src/pages/admin/TrainingClassManagement.tsx(120,9): error TS6133: 't' is declared but its value is never read.
+src/pages/admin/TrainingClassManagement.tsx(379,9): error TS6133: 'filteredPlans' is declared but its value is never read.
+src/pages/admin/TrainingClassManagement.tsx(1041,37): error TS6133: 'err' is declared but its value is never read.
+src/pages/admin/UserManagement.tsx(7,1): error TS6133: 'XLSX' is declared but its value is never read.
+src/pages/admin/UserManagement.tsx(57,9): error TS6133: 'fileInputRef' is declared but its value is never read.
+src/pages/admin/VideoLibrary.tsx(43,10): error TS6133: 'uploadProgress' is declared but its value is never read.
+src/pages/views/CourseLearn.tsx(29,1): error TS6192: All imports in import declaration are unused.
+src/pages/views/CourseLearn.tsx(54,11): error TS6133: 'user' is declared but its value is never read.
+src/pages/views/CourseLearn.tsx(465,23): error TS2322: Type '{ videoId: number; videoName: string | null | undefined; courseRule: CourseRule | undefined; lessonId: number | undefined; trackProgress: boolean; onTimeUpdate: (s: number) => undefined; onComplete: () => Promise<...>; onPlayingChange: (p: boolean) => void; }' is not assignable to type 'IntrinsicAttributes & VideoPlayerProps'.
+  Property 'videoName' does not exist on type 'IntrinsicAttributes & VideoPlayerProps'.
+src/pages/views/ExamTaking.tsx(7,3): error TS6133: 'Input' is declared but its value is never read.
+src/pages/views/ExamTaking.tsx(9,3): error TS6133: 'Radio' is declared but its value is never read.
+src/pages/views/ExamTaking.tsx(30,9): error TS6133: 'Title' is declared but its value is never read.
+src/services/progress.ts(53,11): error TS6196: 'ApiResponse' is declared but never used.
+src/store/authStore.ts(2,32): error TS6196: 'UserRole' is declared but never used.
+src/store/authStore.ts(25,53): error TS6133: 'get' is declared but its value is never read.
+src/store/authStore.ts(25,61): error TS2741: Property 'register' is missing in type '{ user: User | null; token: string | null; refreshToken: string | null; isAuthenticated: boolean; isLoading: false; login: (usercode: string, password: string) => Promise<void>; logout: () => Promise<...>; }' but required in type 'AuthState'.

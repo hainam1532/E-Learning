@@ -40,7 +40,7 @@ export default function VideoLibrary() {
   const [loading, setLoading] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [, setUploadProgress] = useState(0);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);

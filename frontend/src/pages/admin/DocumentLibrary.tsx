@@ -9,7 +9,6 @@ import {
   Input,
   message,
   Space,
-  Tag,
   Popconfirm,
   Typography,
 } from "antd";
@@ -77,7 +76,7 @@ export default function DocumentLibrary() {
   const [loading, setLoading] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [, setUploadProgress] = useState(0);
 
   const [form] = Form.useForm();
 
